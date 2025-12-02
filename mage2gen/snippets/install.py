@@ -1,5 +1,5 @@
 # A Magento 2 module generator library
-# Copyright (C) 2016 Derrick Heesbeen
+# Copyright (C) 2025 Mage2Gen
 #
 # This file is part of Mage2Gen.
 #
@@ -16,68 +16,95 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
-from .. import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, Snippet
+from .. import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, Snippet, SnippetParam, Readme
 
 class InstallSnippet(Snippet):
-	description = """
-	Install is used for creating database tables and adding data to Magento 2. It uses Schema and Data install and upgrade classes.
+    snippet_label = 'Data Patch'
+    description = """
+    Creates a Data Patch class for Magento 2.4+.
+    
+    Data Patches replace the legacy InstallData and UpgradeData scripts. 
+    They ensure that data modifications are applied only once and in a specific order.
+    
+    This snippet generates a class implementing \Magento\Framework\Setup\Patch\DataPatchInterface.
+    """
 
-	- **from_version:** Add sample upgrade from version statement
+    def add(self, patch_name, extra_params=None):
+        patch_class_name = 'Setup\\Patch\\Data\\' + patch_name
+        
+        # Define the Patch Class
+        patch_class = Phpclass(
+            patch_class_name,
+            implements=['DataPatchInterface'],
+            dependencies=[
+                'Magento\\Framework\\Setup\\Patch\\DataPatchInterface',
+                'Magento\\Framework\\Setup\\ModuleDataSetupInterface'
+            ],
+            attributes=[
+                '/** @var ModuleDataSetupInterface */',
+                'private $moduleDataSetup;'
+            ]
+        )
 
-	Snippet generation
-	------------------
-	When you generate a module, the following classes will be created:
+        # Constructor
+        patch_class.add_method(Phpmethod(
+            '__construct',
+            params=['ModuleDataSetupInterface $moduleDataSetup'],
+            body='$this->moduleDataSetup = $moduleDataSetup;',
+            docstring=[
+                'Constructor',
+                '',
+                '@param ModuleDataSetupInterface $moduleDataSetup'
+            ]
+        ))
 
-	**Install scripts**
-	
-	- Setup/InstallSchema
-	- Setup/InstallData
+        # Apply Method
+        patch_class.add_method(Phpmethod(
+            'apply',
+            return_type='void',
+            body="""$this->moduleDataSetup->getConnection()->startSetup();
 
-	**Upgrade scripts** (With the sample from_version statement)
-	
-	- Setup/UpgradeSchema
-	- Setup/UpgradeData  
-	"""
+// Your code here (e.g. add EAV attributes, config settings, CMS blocks)
 
-	def add(self,from_version='1.0.0', extra_params=None):
+$this->moduleDataSetup->getConnection()->endSetup();""",
+            docstring=['{@inheritdoc}']
+        ))
 
-		install_schema = Phpclass('Setup\\InstallSchema',implements=['InstallSchemaInterface'],dependencies=[
-			'Magento\\Framework\\Setup\\InstallSchemaInterface',
-			'Magento\\Framework\\Setup\\ModuleContextInterface',
-			'Magento\\Framework\\Setup\\SchemaSetupInterface'])
-		install_schema.add_method(Phpmethod('install',params=['SchemaSetupInterface $setup','ModuleContextInterface $context'],
-			body='//Your install script',
-			docstring=['{@inheritdoc}']))
-	
-		self.add_class(install_schema)
+        # GetDependencies Method
+        patch_class.add_method(Phpmethod(
+            'getDependencies',
+            access='public static',
+            return_type='array',
+            body='return [];',
+            docstring=['{@inheritdoc}']
+        ))
 
-		install_data = Phpclass('Setup\\InstallData',implements=['InstallDataInterface'],dependencies=[
-			'Magento\\Framework\\Setup\\InstallDataInterface',
-			'Magento\\Framework\\Setup\\ModuleContextInterface',
-			'Magento\\Framework\\Setup\\ModuleDataSetupInterface'])
-		install_data.add_method(Phpmethod('install',
-			params=['ModuleDataSetupInterface $setup','ModuleContextInterface $context'],
-			body='//Your install script',
-			docstring=['{@inheritdoc}']))
-	
-		self.add_class(install_data)
+        # GetAliases Method
+        patch_class.add_method(Phpmethod(
+            'getAliases',
+            return_type='array',
+            body='return [];',
+            docstring=['{@inheritdoc}']
+        ))
 
-		update_schema = Phpclass('Setup\\UpgradeSchema',implements=['UpgradeSchemaInterface'],dependencies=[
-			'Magento\\Framework\\Setup\\UpgradeSchemaInterface',
-			'Magento\\Framework\\Setup\\ModuleContextInterface',
-			'Magento\\Framework\\Setup\\SchemaSetupInterface'])
-		update_schema.add_method(Phpmethod('upgrade',params=['SchemaSetupInterface $setup','ModuleContextInterface $context'],
-			body='if (version_compare($context->getVersion(), "'+from_version+'", "<")) {\n    //Your upgrade script\n}\n',
-			docstring=['{@inheritdoc}']))
-	
-		self.add_class(update_schema)
+        self.add_class(patch_class)
+        
+        self.add_static_file(
+            '.',
+            Readme(
+                specifications=" - Data Patch\n\t- {}".format(patch_class_name),
+            )
+        )
 
-		update_data = Phpclass('Setup\\UpgradeData',implements=['UpgradeDataInterface'],dependencies=[
-			'Magento\\Framework\\Setup\\UpgradeDataInterface',
-			'Magento\\Framework\\Setup\\ModuleContextInterface',
-			'Magento\\Framework\\Setup\\ModuleDataSetupInterface'])
-		update_data.add_method(Phpmethod('upgrade',params=['ModuleDataSetupInterface $setup','ModuleContextInterface $context'],
-			body='if (version_compare($context->getVersion(), "'+from_version+'", "<")) {\n    //Your upgrade script\n}\n',
-			docstring=['{@inheritdoc}']))
-		
-		self.add_class(update_data)		
+    @classmethod
+    def params(cls):
+        return [
+            SnippetParam(
+                name='patch_name',
+                required=True,
+                default='InitialData',
+                description='Name of the patch class (e.g. AddDefaultProducts, UpdateConfig)',
+                regex_validator=r'^[a-zA-Z0-9]+$',
+                error_message='Only alphanumeric characters are allowed.'
+            )
+        ]
