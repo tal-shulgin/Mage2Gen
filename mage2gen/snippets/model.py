@@ -531,7 +531,7 @@ class ModelSnippet(Snippet):
             self.add_adminhtml_grid(model_name, field_name, model_table, model_id, collection_model_class, field_element_type, top_level_menu, adminhtml_form)
 
         if adminhtml_form:
-            self.add_adminhtml_form(model_name, field_name, model_table, model_id, collection_model_class, model_class, required, field_element_type, extra_params)
+            self.add_adminhtml_form(model_name, field_name, model_table, model_id, collection_model_class, model_class, required, field_element_type, extra_params, api_repository_class, model_name_capitalized)
             self.add_acl(model_name)
 
 
@@ -552,8 +552,8 @@ class ModelSnippet(Snippet):
             ])
 
         index_controller_class.add_method(Phpmethod('__construct',
-            params=['\\Magento\\Backend\\App\\Action\\Context $context', '\\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory'],
-            body='$this->resultPageFactory = $resultPageFactory;\nparent::__construct($context);',
+            params=['\\Magento\\Backend\\App\\Action\\Context $context', 'protected \\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory'],
+            body='parent::__construct($context);',
             docstring=[
                 'Constructor',
                 '',
@@ -751,8 +751,10 @@ class ModelSnippet(Snippet):
                 columns_xml
             ]))
 
-    def add_adminhtml_form(self, model_name, field_name, model_table, model_id, collection_model_class, model_class, required, field_element_type, extra_params):
+    def add_adminhtml_form(self, model_name, field_name, model_table, model_id, collection_model_class, model_class, required, field_element_type, extra_params, api_repository_class, model_name_capitalized):
         frontname = self.module_name.lower()
+        repo_interface = "\\{}\\{}\\Api\\{}RepositoryInterface".format(self._module.package, self._module.name, model_name_capitalized)
+        
         # Add block buttons
         # Back button
         back_button = Phpclass('Block\\Adminhtml\\' + model_name.replace('_', '\\') + '\\Edit\\BackButton', implements=['ButtonProviderInterface'],
@@ -812,10 +814,11 @@ class ModelSnippet(Snippet):
         generic_button.add_method(Phpmethod('__construct',
             params=['Context $context'],
             body="""$this->context = $context;""",
-            docstring=['@param \\Magento\\Backend\\Block\Widget\\Context $context']))
+            docstring=['@param Context $context']))
 
         generic_button.add_method(Phpmethod('getModelId',
             body="""return $this->context->getRequest()->getParam('{}');""".format(model_id),
+            return_type='?int',
             docstring=[
                 'Return model ID',
                 '',
@@ -947,33 +950,50 @@ class ModelSnippet(Snippet):
         # Edit controller
         edit_controller = Phpclass('Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Edit', extends= '\\' + link_controller.class_namespace,
             attributes=[
-                'protected $resultPageFactory;'
+                'protected $resultPageFactory;',
+                'private $repository;'
+            ],
+            dependencies=[
+                'Magento\\Framework\\Exception\\NoSuchEntityException',
+                repo_interface
             ])
         edit_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
                 '\\Magento\\Framework\\Registry $coreRegistry',
-                '\\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory'],
-            body="""$this->resultPageFactory = $resultPageFactory;\nparent::__construct($context, $coreRegistry);""",
+                '\\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory',
+                '{}RepositoryInterface $repository'.format(model_name_capitalized)],
+            body="""$this->resultPageFactory = $resultPageFactory;
+        $this->repository = $repository;
+        parent::__construct($context, $coreRegistry);""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\Registry $coreRegistry',
                 '@param \\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory',
+                '@param {}RepositoryInterface $repository'.format(model_name_capitalized),
             ]))
         edit_controller.add_method(Phpmethod('execute',
             body="""// 1. Get ID and create model
                 $id = $this->getRequest()->getParam('{model_id}');
-                $model = $this->_objectManager->create(\{model_class}::class);
-
+                
                 // 2. Initial checking
                 if ($id) {{
-                    $model->load($id);
-                    if (!$model->getId()) {{
+                    try {{
+                        $model = $this->repository->get($id);
+                    }} catch (NoSuchEntityException $e) {{
                         $this->messageManager->addErrorMessage(__('This {model_name} no longer exists.'));
                         /** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                         $resultRedirect = $this->resultRedirectFactory->create();
                         return $resultRedirect->setPath('*/*/');
                     }}
                 }}
+                
+                // We still create a new model for the registry to ensure compatibility with UI components that expect a full model.
+                // The repository get() returns a data interface which might not be sufficient for all UI components.
+                $model = $this->_objectManager->create(\{model_class}::class);
+                if ($id) {{
+                    $model->load($id);
+                }}
+
                 $this->_coreRegistry->register('{register_model}', $model);
 
                 // 3. Build edit form
@@ -1087,8 +1107,8 @@ class ModelSnippet(Snippet):
 
         new_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
-                '\\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor'],
-            body="""$this->dataPersistor = $dataPersistor;\nparent::__construct($context);""",
+                'protected \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor'],
+            body="""parent::__construct($context);""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor',
@@ -1097,36 +1117,39 @@ class ModelSnippet(Snippet):
             body="""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     $data = $this->getRequest()->getPostValue();
-                    if ($data) {{
-                        $id = $this->getRequest()->getParam('{model_id}');
-
-                        $model = $this->_objectManager->create(\{model_class}::class)->load($id);
-                        if (!$model->getId() && $id) {{
-                            $this->messageManager->addErrorMessage(__('This {model_name} no longer exists.'));
-                            return $resultRedirect->setPath('*/*/');
-                        }}
-
-                        $model->setData($data);
-
-                        try {{
-                            $model->save();
-                            $this->messageManager->addSuccessMessage(__('You saved the {model_name}.'));
-                            $this->dataPersistor->clear('{register_model}');
-
-                            if ($this->getRequest()->getParam('back')) {{
-                                return $resultRedirect->setPath('*/*/edit', ['{model_id}' => $model->getId()]);
-                            }}
-                            return $resultRedirect->setPath('*/*/');
-                        }} catch (LocalizedException $e) {{
-                            $this->messageManager->addErrorMessage($e->getMessage());
-                        }} catch (\Exception $e) {{
-                            $this->messageManager->addExceptionMessage($e, __('Something went wrong while saving the {model_name}.'));
-                        }}
-
-                        $this->dataPersistor->set('{register_model}', $data);
-                        return $resultRedirect->setPath('*/*/edit', ['{model_id}' => $this->getRequest()->getParam('{model_id}')]);
+                    
+                    if (!$data) {{
+                        return $resultRedirect->setPath('*/*/');
                     }}
-                    return $resultRedirect->setPath('*/*/');""".format(
+                    
+                    $id = $this->getRequest()->getParam('{model_id}');
+
+                    $model = $this->_objectManager->create(\{model_class}::class)->load($id);
+                    if (!$model->getId() && $id) {{
+                        $this->messageManager->addErrorMessage(__('This {model_name} no longer exists.'));
+                        return $resultRedirect->setPath('*/*/');
+                    }}
+
+                    $model->setData($data);
+
+                    try {{
+                        $model->save();
+                        $this->messageManager->addSuccessMessage(__('You saved the {model_name}.'));
+                        $this->dataPersistor->clear('{register_model}');
+
+                        if ($this->getRequest()->getParam('back')) {{
+                            return $resultRedirect->setPath('*/*/edit', ['{model_id}' => $model->getId()]);
+                        }}
+                        return $resultRedirect->setPath('*/*/');
+                    }} catch (LocalizedException $e) {{
+                        $this->messageManager->addErrorMessage($e->getMessage());
+                    }} catch (\Exception $e) {{
+                        $this->messageManager->addExceptionMessage($e, __('Something went wrong while saving the {model_name}.'));
+                    }}
+
+                    $this->dataPersistor->set('{register_model}', $data);
+                    return $resultRedirect->setPath('*/*/edit', ['{model_id}' => $this->getRequest()->getParam('{model_id}')]);
+                    """.format(
                         model_id = model_id,
                         model_class = model_class.class_namespace,
                         model_name = model_name.replace('_', ' ').title(),
