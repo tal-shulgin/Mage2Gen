@@ -40,7 +40,7 @@ class CompanyAttributeSnippet(Snippet):
 		attribute_code = extra_params.get('attribute_code', None)
 
 		if not attribute_code:
-			attribute_code = attribute_label.lower().replace(' ','_')[:30]
+			attribute_code = attribute_label.lower().replace(' ','_')[:60]
 
 		templatePath = os.path.join(os.path.dirname(__file__), '../templates/attributes/companyattribute.tmpl')
 
@@ -283,6 +283,6 @@ class CompanyAttributeSnippet(Snippet):
 			SnippetParam(
 				name='attribute_code',
 				description='Default to lowercase of label',
-				regex_validator= r'^[a-zA-Z]{1}\w{0,29}$',
-				error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 30 characters'),
+				regex_validator= r'^[a-zA-Z]{1}\w{0,59}$',
+				error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 60 characters'),
 		]

@@ -82,7 +82,7 @@ class ProductAttributeSnippet(Snippet):
 
 		attribute_code = extra_params.get('attribute_code', None)
 		if not attribute_code:
-			attribute_code = attribute_label.lower().replace(' ','_')[:30]
+			attribute_code = attribute_label.lower().replace(' ','_')[:60]
 
 		split_attribute_code = attribute_code.split('_')
 		attribute_code_capitalized = ''.join(upperfirst(item) for item in split_attribute_code)
@@ -357,8 +357,8 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 			SnippetParam(
 				name='attribute_code',
 				description='Default to lowercase of label',
-				regex_validator= r'^[a-zA-Z]{1}\w{0,29}$',
-				error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 30 characters'),
+				regex_validator= r'^[a-zA-Z]{1}\w{0,59}$',
+				error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 60 characters'),
 			SnippetParam(
 				 name='apply_to',
 				 required=False,

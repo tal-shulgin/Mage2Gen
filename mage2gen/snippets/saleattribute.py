@@ -31,28 +31,20 @@ class SalesAttributeSnippet(Snippet):
         ("quote", "Quote"),
         ("quote_item", "Quote Item"),
         ("quote_address", "Quote Address"),
-        # ("quote_address_item", "Quote Address Item"),
-        # ("quote_address_rate", "Quote Address Rate"),
         ("sales_order", "Order"),
-        # ("sales_order_payment", "Order Payment"),
         ("sales_order_item", "Order Item"),
         ("sales_order_address", "Order Address"),
-        # ("order_status_history", "Order Status History"),
         ("sales_invoice", "Invoice"),
         ("sales_invoice_item", "Invoice Item"),
-        # ("sales_invoice_comment", "Invoice Comment"),
         ("sales_creditmemo", "Creditmemo"),
         ("sales_creditmemo_item", "Creditmemo Item"),
-        # ("sales_creditmemo_comment", "Creditmemo Comment"),
         ("sales_shipment", "Shipment"),
         ("sales_shipment_item", "Shipment Item"),
-        # ("sales_shipment_track", "Shipment Track"),
-        # ("sales_shipment_comment", "Shipment Comment"),
     ]
 
     description = """
-		Install Magento 2 sales order attributes programmatically.
-	"""
+        Install Magento 2 sales order attributes programmatically.
+    """
 
     def add(self, attribute_label, sales_entity='quote', frontend_input='varchar', required=False, upgrade_data=False,
             from_version='1.0.1', extra_params=None):
@@ -61,16 +53,15 @@ class SalesAttributeSnippet(Snippet):
 
         attribute_code = extra_params.get('attribute_code', None)
         if not attribute_code:
-            attribute_code = attribute_label.lower().replace(' ', '_')[:30]
+            attribute_code = attribute_label.lower().replace(' ', '_')[:60]
 
+        size = None
         if extra_params.get('field_size'):
             size = extra_params.get('field_size')
         elif value_type == 'decimal':
             size = '\'12,4\''
         elif value_type == 'varchar' and not extra_params.get('field_size'):
             size = '255'
-        else:
-            size = 'null'
 
         attributes = {
             'name': "{}".format(attribute_code),
@@ -80,6 +71,7 @@ class SalesAttributeSnippet(Snippet):
         }
         if size:
             attributes['length'] = size
+            
         if value_type == 'integer' or value_type == 'bigint':
             attributes['xsi:type'] = "int"
         elif value_type == 'numeric':
@@ -97,7 +89,6 @@ class SalesAttributeSnippet(Snippet):
             attributes['length'] = '255'
 
         # Create db_schema.xml declaration
-
         db_nodes = [
             Xmlnode('table', attributes={
                 'name': "{}".format(sales_entity),
@@ -105,6 +96,7 @@ class SalesAttributeSnippet(Snippet):
                 Xmlnode('column', attributes=attributes)
             ])
         ]
+        
         if extra_params.get('used_in_admin_grid') and not sales_entity.__contains__('quote'):
             virtual_types = {
                 "sales_order": "Magento\\Sales\\Model\\ResourceModel\\Order\Grid",
@@ -207,8 +199,8 @@ class SalesAttributeSnippet(Snippet):
             SnippetParam(
                 name='attribute_code',
                 description='Default to lowercase of label',
-                regex_validator=r'^[a-zA-Z]{1}\w{0,29}$',
-                error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 30 characters',
+                regex_validator=r'^[a-zA-Z]{1}\w{0,59}$',
+                error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 60 characters',
                 repeat=True),
             SnippetParam(
                 name='field_size',

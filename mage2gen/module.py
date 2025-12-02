@@ -75,9 +75,8 @@ class Phpclass:
         if methods:
             methods = '\n' + methods
 
-        # Sort and Format Attributes
         if self.attributes:
-            # Basic sorting to keep constants at top if possible, though strict ordering requires parsing
+            # Basic sorting to keep constants at top
             sorted_attrs = sorted(list(self.attributes), key=lambda x: (not x.startswith('const'), x))
             attributes = '\n    ' + '\n    '.join(sorted_attrs) + '\n'
         else:
@@ -154,15 +153,10 @@ class Phpmethod:
         return hash(self.name)
 
     def params_code(self):
-        # Improved formatting for long parameter lists (PSR-12 style)
-        # If parameters are long, break them into multiple lines with proper indentation
         raw_length = sum(len(s) for s in self.params)
-        
         if raw_length > 80 or len(self.params) > 3:
-            # Multi-line formatting
             return '\n        ' + ',\n        '.join(self.params) + '\n    '
         else:
-            # Single-line formatting
             return ', '.join(self.params)
 
     def return_type_code(self):
@@ -189,7 +183,6 @@ class Phpmethod:
             body_string += self.body_start
         for body_code in self.body:
             if body_code:
-                # Ensure body indentation is correct (8 spaces for method body)
                 body_string += '\n        '.join(s.strip() for s in body_code.splitlines()) + '\n\n        '
         for body_code in self.end_body:
             if body_code:
@@ -209,7 +202,6 @@ class Phpmethod:
             params=self.params_code(),
             return_type=self.return_type_code(),
             body=self.body_code(),
-            # Adjust brace behavior based on param length
             brace_break='' if '\n' not in self.params_code() else '' 
         ).replace('\t', '    ')
 
@@ -420,7 +412,7 @@ class GraphQlSchema:
 
         return template.format(
             **self.context_data()
-        ).replace('\t', '    ')
+        ).replace('\t', '    ') 
 
     def save(self, path):
         try:
@@ -492,7 +484,7 @@ class GraphQlObjectType:
 
         return template.format(
             **self.context_data()
-        ).replace('\t', '    ')
+        ).replace('\t', '    ') 
 
 
 class GraphQlObjectItem:
@@ -605,7 +597,7 @@ class Module:
         self._composer['type'] = 'magento2-module'
         self._composer['license'] = 'proprietary'
         
-        # Use Package name as Author, generic email
+        # Use Package name as Author
         self._composer['authors'] = [
             {
                 'name': self.package,
