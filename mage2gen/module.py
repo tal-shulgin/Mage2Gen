@@ -1,22 +1,8 @@
 # A Magento 2 module generator library
 # Copyright (C) 2025 Mage2Gen
-#
-# This file is part of Mage2Gen.
-#
-# Mage2Gen is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 import json
+import textwrap
 from collections import defaultdict, OrderedDict
 from xml.etree.ElementTree import Element, SubElement, tostring, ElementTree
 from xml.dom import minidom
@@ -71,30 +57,37 @@ class Phpclass:
             self.methods.append(method)
 
     def context_data(self):
-        methods = '\n\n'.join(m.generate() for m in self.methods)
-        if methods:
-            methods = '\n' + methods
+        # dependencies
+        dependencies_str = ''
+        if self.dependencies:
+            # Add two newlines before use statements to separate from namespace
+            dependencies_str = '\n\n' + ';\n'.join("use %s" % (d) for d in sorted(self.dependencies)) + ';'
 
-        if self.attributes:
-            # Basic sorting to keep constants at top
-            sorted_attrs = sorted(list(self.attributes), key=lambda x: (not x.startswith('const'), x))
-            attributes = '\n    ' + '\n    '.join(sorted_attrs) + '\n'
-        else:
-            attributes = ''
+        # Build Class Body
+        body_parts = []
 
-        dependencies = ';\n'.join("use %s" % (dependency) for dependency in sorted(self.dependencies))
-        if dependencies:
-            dependencies = '\n' + dependencies + ';\n'
+        # 1. Attributes
+        valid_attrs = [a for a in self.attributes if a.strip()]
+        if valid_attrs:
+            sorted_attrs = sorted(list(valid_attrs), key=lambda x: (not x.startswith('const'), x))
+            # Add indentation
+            body_parts.append('    ' + '\n    '.join(sorted_attrs))
+
+        # 2. Methods
+        if self.methods:
+            body_parts.append('\n\n'.join(m.generate() for m in self.methods))
+
+        # Join attributes and methods with a blank line
+        class_body = '\n\n'.join(body_parts)
 
         return {
             'license': self.license.get_php_docstring() if self.license else '',
             'namespace': self.namespace,
             'class_name': self.class_name,
-            'methods': methods,
+            'class_body': class_body,
             'extends': ' extends {}'.format(self.extends) if self.extends else '',
             'implements': ' implements {}'.format(', '.join(self.implements)) if self.implements else '',
-            'attributes': attributes,
-            'dependencies': dependencies,
+            'dependencies': dependencies_str,
             'abstract': 'abstract ' if self.abstract else '',
         }
 
@@ -154,6 +147,7 @@ class Phpmethod:
 
     def params_code(self):
         raw_length = sum(len(s) for s in self.params)
+        # PSR-12: if multiline, newline after ( and before )
         if raw_length > 80 or len(self.params) > 3:
             return '\n        ' + ',\n        '.join(self.params) + '\n    '
         else:
@@ -167,10 +161,10 @@ class Phpmethod:
     def docstring_code(self):
         if not self.docstring:
             return ''
-
-        docstring = '/**'
+        # Indent 4 spaces
+        docstring = '    /**'
         docstring += '\n     *' + '\n     *'.join(" {}".format(line.strip()) if len(line.strip()) else '' for line in self.docstring)
-        docstring += '\n     */\n    '
+        docstring += '\n     */'
         return docstring
 
     def add_body_code(self, code):
@@ -178,18 +172,25 @@ class Phpmethod:
             self.append(code)
 
     def body_code(self):
-        body_string = ''
+        full_body_list = []
         if self.body_start:
-            body_string += self.body_start
-        for body_code in self.body:
-            if body_code:
-                body_string += '\n        '.join(s.strip() for s in body_code.splitlines()) + '\n\n        '
-        for body_code in self.end_body:
-            if body_code:
-                body_string += '\n        '.join(s.strip() for s in body_code.splitlines()) + '\n\n        '
+            full_body_list.append(self.body_start)
+        full_body_list.extend(self.body)
+        full_body_list.extend(self.end_body)
         if self.body_return:
-            body_string += self.body_return
-        return body_string.strip()
+            full_body_list.append(self.body_return)
+
+        processed_body = []
+        for block in full_body_list:
+            if not block.strip():
+                continue
+            # Normalize indentation
+            dedented = textwrap.dedent(block)
+            # Indent 8 spaces for method body
+            indented = textwrap.indent(dedented.strip(), '        ')
+            processed_body.append(indented)
+        
+        return '\n\n'.join(processed_body)
 
     def generate(self):
         with open(self.template_file, 'rb') as tmpl:
@@ -202,19 +203,18 @@ class Phpmethod:
             params=self.params_code(),
             return_type=self.return_type_code(),
             body=self.body_code(),
-            brace_break='' if '\n' not in self.params_code() else '' 
+            # If params are multiline, we don't need extra space before bracket, otherwise we do?
+            # Actually standard is `function foo(...) : type\n{`
+            brace_break=''
         ).replace('\t', '    ')
 
 ###############################################################################
 # XML
 ###############################################################################
 class Xmlnode:
-
     def __init__(self, node_name, attributes=None, nodes=None, node_text=None, match_attributes=None, xsd=False):
-
         if nodes :
             nodes = [x for x in nodes if x]
-
         self.node_name = node_name
         self.node_text = node_text
         self.attributes = attributes if attributes else {}
@@ -277,16 +277,13 @@ class Xmlnode:
             os.makedirs(os.path.dirname(xml_path))
         except Exception:
             pass
-
         with open(xml_path, 'w+', encoding='utf-8') as xml_file:
             xml_file.writelines(self.generate())
 
-
 ###############################################################################
-# Template files
+# StaticFile
 ###############################################################################
 class StaticFile:
-
     def __init__(self, file_name, body=None, template_file='staticfile.tmpl', context_data=None):
         self.file_name = file_name
         self.template_file = os.path.join(TEMPLATE_DIR, template_file)
@@ -307,25 +304,20 @@ class StaticFile:
     def generate(self):
         with open(self.template_file, 'rb') as tmpl:
             template = tmpl.read().decode('utf-8')
-
-        return template.format(
-            **self.context_data()
-        )
+        return template.format(**self.context_data())
 
     def save(self, file_path):
         try:
             os.makedirs(os.path.dirname(file_path))
         except Exception:
             pass
-
         with open(file_path, 'w+', encoding='utf-8') as static_file:
             static_file.writelines(self.generate())
 
 ###############################################################################
-# Readme Template
+# Readme
 ###############################################################################
 class Readme:
-
     def __init__(self, file_name='README.md', body=None, template_file='readme.tmpl', context_data=None, configuration=None, specifications=None, attributes=None):
         self.file_name = file_name
         self.template_file = os.path.join(TEMPLATE_DIR, template_file)
@@ -361,83 +353,60 @@ class Readme:
     def generate(self):
         with open(self.template_file, 'rb') as tmpl:
             template = tmpl.read().decode('utf-8')
-
-        return template.format(
-            **self.context_data()
-        )
+        return template.format(**self.context_data())
 
     def save(self, file_path):
         try:
             os.makedirs(os.path.dirname(file_path))
         except Exception:
             pass
-
         with open(file_path, 'w+', encoding='utf-8') as static_file:
             static_file.writelines(self.generate())
 
-
 ###############################################################################
-# GraphQl Objects
+# GraphQl
 ###############################################################################
 class GraphQlSchema:
     template_file = os.path.join(TEMPLATE_DIR, 'graphqlschema.tmpl')
-
     def __init__(self):
         self.object_types = []
-
     def __add__(self, other):
         for object_type in other.object_types:
             self.add_objecttype(object_type)
         return self
-
     def add_objecttype(self, object_type):
         if object_type in self.object_types:
             object_type_index = self.object_types.index(object_type)
             self.object_types[object_type_index] = self.object_types[object_type_index] + object_type
         else:
             self.object_types.append(object_type)
-
     def context_data(self):
         object_types = '\n\n'.join(t.generate() for t in self.object_types)
         if object_types:
             object_types = '\n' + object_types
-
-        return {
-            'object_types': object_types
-        }
-
+        return {'object_types': object_types}
     def generate(self):
         with open(self.template_file, 'rb') as tmpl:
             template = tmpl.read().decode('utf-8')
-
-        return template.format(
-            **self.context_data()
-        ).replace('\t', '    ') 
-
+        return template.format(**self.context_data()).replace('\t', '    ')
     def save(self, path):
         try:
             os.makedirs(os.path.dirname(path))
         except Exception:
             pass
-
         with open(path, 'w+', encoding='utf-8') as class_file:
             class_file.writelines(self.generate())
 
-
 class GraphQlObjectType:
-
     def __init__(self, type, **kwargs):
-
         self.type = type
         self.type_declaration = kwargs.get('type_declaration', 'type')
         self.body = [kwargs.get('body', '')]
         self.end_body = [kwargs.get('end_body', '')]
         self.template_file = os.path.join(TEMPLATE_DIR, 'graphqlobject.tmpl')
         self.object_items = []
-
     def __eq__(self, other):
         return self.type == other.type
-
     def __add__(self, other):
         for item in other.object_items:
             self.add_objectitem(item)
@@ -448,49 +417,32 @@ class GraphQlObjectType:
             if code not in self.end_body:
                 self.end_body.insert(0, code)
         return self
-
     def __hash__(self):
         return hash(self.type)
-
     def add_objectitem(self, object_item):
         if object_item in self.object_items:
             object_type_index = self.object_items.index(object_item)
             self.object_items[object_type_index] = self.object_items[object_type_index] + object_item
         else:
             self.object_items.append(object_item)
-
     def body_code(self):
         body_string = ''
         for body_code in self.body:
             if body_code:
                 body_string += '\n\t'.join(s.strip('\t') for s in body_code.splitlines()) + '\n\n\t'
         return body_string.strip()
-
     def context_data(self):
         object_items = '\n'.join(i.generate() for i in self.object_items)
         if object_items:
             object_items = '\n' + object_items
-
-        return {
-            'type_declaration': self.type_declaration,
-            'type': self.type,
-            'object_items': object_items,
-            'body': self.body_code()
-        }
-
+        return {'type_declaration': self.type_declaration, 'type': self.type, 'object_items': object_items, 'body': self.body_code()}
     def generate(self):
         with open(self.template_file, 'rb') as tmpl:
             template = tmpl.read().decode('utf-8')
-
-        return template.format(
-            **self.context_data()
-        ).replace('\t', '    ') 
-
+        return template.format(**self.context_data()).replace('\t', '    ')
 
 class GraphQlObjectItem:
-
     def __init__(self, item_identifier, **kwargs):
-
         self.item_identifier = item_identifier
         self.item_type = kwargs.get('item_type', 'String')
         if self.item_type:
@@ -523,10 +475,8 @@ class GraphQlObjectItem:
             self.item_arguments = '(\n' + ",\n".join(arguments) + '\n\t)'
         if self.item_input:
             self.item_arguments = '(input: {item_input})'.format(item_input=self.item_input)
-
     def __eq__(self, other):
         return self.item_identifier == other.item_identifier
-
     def __add__(self, other):
         for code in other.body:
             if code not in self.body:
@@ -538,28 +488,17 @@ class GraphQlObjectItem:
             if code not in self.end_body:
                 self.end_body.insert(0, code)
         return self
-
     def __hash__(self):
         return hash(self.item_type)
-
     def generate(self):
         with open(self.template_file, 'rb') as tmpl:
             template = tmpl.read().decode('utf-8')
-
-        return template.format(
-            item_identifier=self.item_identifier,
-            item_type=self.item_type,
-            item_resolver=self.item_resolver,
-            item_description=self.item_description,
-            item_cache_identity=self.item_cache_identity,
-            item_arguments=self.item_arguments
-        ).replace('\t', '    ')
+        return template.format(item_identifier=self.item_identifier, item_type=self.item_type, item_resolver=self.item_resolver, item_description=self.item_description, item_cache_identity=self.item_cache_identity, item_arguments=self.item_arguments).replace('\t', '    ')
 
 ###############################################################################
 # Module
 ###############################################################################
 class Module:
-
     def __init__(self, package, name, description='', license=None):
         self.package = upperfirst(package)
         self.name = upperfirst(name)
@@ -569,131 +508,74 @@ class Module:
         self._xmls = {}
         self._classes = {}
         self._static_files = {}
-
-        # Basic Magento2 module XML
-        etc_module = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:framework:Module/etc/module.xsd"}, nodes=[
-            Xmlnode('module', attributes={'name': self.module_name})
-        ])
+        etc_module = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:framework:Module/etc/module.xsd"}, nodes=[Xmlnode('module', attributes={'name': self.module_name})])
         self.add_xml('etc/module.xml', etc_module)
-
         composer_name = '{}/module-{}'.format(self.package.lower(), self.name.lower())
-        self.add_static_file(
-            '.',
-            Readme(
-                context_data={
-                    'package_name': upperfirst(self.package),
-                    'name': upperfirst(self.name),
-                    'module_name': self.module_name,
-                    'composer_name': composer_name,
-                    'description': self.description,
-                }
-            )
-        )
-
-        # Dynamic Composer Configuration
+        self.add_static_file('.', Readme(context_data={'package_name': upperfirst(self.package), 'name': upperfirst(self.name), 'module_name': self.module_name, 'composer_name': composer_name, 'description': self.description}))
         self._composer = OrderedDict()
         self._composer['name'] = composer_name
         self._composer['description'] = self.description
         self._composer['type'] = 'magento2-module'
         self._composer['license'] = 'proprietary'
-        
-        # Use Package name as Author
-        self._composer['authors'] = [
-            {
-                'name': self.package,
-                'email': 'info@example.com'
-            }
-        ]
+        self._composer['authors'] = [{'name': self.package, 'email': 'info@example.com'}]
         self._composer['minimum-stability'] = 'dev'
-        self._composer['require'] = {
-            "php": "~7.4.0||~8.1.0||~8.2.0||~8.3.0",
-            "magento/framework": "*"
-        }
-        self._composer['autoload'] = {
-                'files': [
-                    'registration.php'
-                ],
-                'psr-4': {
-                    "{}\\{}\\".format(self.package, self.name): ""
-                }
-            }
-
+        self._composer['require'] = {"php": "~7.4.0||~8.1.0||~8.2.0||~8.3.0", "magento/framework": "*"}
+        self._composer['autoload'] = {'files': ['registration.php'], 'psr-4': {"{}\\{}\\".format(self.package, self.name): ""}}
     @property
     def module_name(self):
         return '{}_{}'.format(self.package, self.name)
-
     @classmethod
     def load_module(cls, data):
-        # convert data
         return cls('Experius', 'Test')
-
     def generate_module(self, root_location):
         if not os.path.exists(root_location):
             raise Exception('Location does not exists')
-
         location = os.path.join(root_location, self.package, self.name)
-
         try:
             os.makedirs(location)
         except Exception:
             pass
-
         context_data = {'module_name': self.module_name, 'license': ''}
-
         if self.license:
             self._composer['license'] = self.license.identifier
             self.add_static_file('', StaticFile('LICENSE.txt', body=self.license.get_text()))
             self.add_static_file('', StaticFile('COPYING.txt', body=self.license.get_short_text()))
             context_data = {'module_name': self.module_name, 'license': self.license.get_php_docstring()}
-
         self.add_static_file('.', StaticFile('registration.php', template_file='registration.tmpl',context_data=context_data))
-
-        # Add composer as static file
         self.add_static_file('', StaticFile('composer.json', body=json.dumps(self._composer, indent=4)))
-
         for class_name, phpclass in self._classes.items():
             phpclass.save(root_location)
-
         for graphqlschema_file, graphqlobjecttype in self._graphqlschemas.items():
             path = os.path.join(location, graphqlschema_file)
             graphqlobjecttype.save(path)
-
         for xml_file, node in self._xmls.items():
             path = os.path.join(location, xml_file)
             node.save(path)
-
         for path, static_file in self._static_files.items():
             path = os.path.join(location, path)
             static_file.save(path)
-
     def add_composer_require(self, require, version = "*", dev = False):
         if dev:
             self._composer['require-dev'][require] = version
         else:
             self._composer['require'][require] = version
-
     def add_class(self, phpclass):
         root_namespace = '{}\{}'.format(self.package, self.name)
         if root_namespace not in phpclass.class_namespace:
             phpclass.class_namespace = '{}\{}'.format(root_namespace, phpclass.class_namespace)
-
         current_class = self._classes.get(phpclass.class_namespace)
         if current_class:
             current_class += phpclass
         else:
             current_class = phpclass
-
         current_class.license = self.license
-
         self._classes[current_class.class_namespace] = current_class
-
     def add_graphqlschema(self, graphqlschema_file, schema):
         current_schema = self._graphqlschemas.get(graphqlschema_file)
         if current_schema:
             current_schema += schema
         else:
             self._graphqlschemas[graphqlschema_file] = schema
-
     def add_xml(self, xml_file, node):
         current_xml = self._xmls.get(xml_file)
         if current_xml:
@@ -702,14 +584,11 @@ class Module:
             current_xml.add_nodes(node.nodes)
         else:
             self._xmls[xml_file] = node
-
     def add_static_file(self, path, staticfile):
         full_name = os.path.join(path, staticfile.file_name)
-
         current_staticfile = self._static_files.get(full_name)
         if current_staticfile:
             current_staticfile += staticfile
         else:
             current_staticfile = staticfile
-
         self._static_files[full_name] = current_staticfile
