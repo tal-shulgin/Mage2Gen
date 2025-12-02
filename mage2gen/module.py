@@ -1,19 +1,5 @@
 # A Magento 2 module generator library
-# Copyright (C) 2016 Maikel Martens
-#
-# This file is part of Mage2Gen.
-#
-# Mage2Gen is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-## A Magento 2 module generator library
-# Copyright (C) 2016 Maikel Martens
+# Copyright (C) 2025 Mage2Gen
 #
 # This file is part of Mage2Gen.
 #
@@ -89,8 +75,11 @@ class Phpclass:
         if methods:
             methods = '\n' + methods
 
+        # Sort and Format Attributes
         if self.attributes:
-            attributes = '\n\t' + '\n\t'.join(self.attributes) + '\n'
+            # Basic sorting to keep constants at top if possible, though strict ordering requires parsing
+            sorted_attrs = sorted(list(self.attributes), key=lambda x: (not x.startswith('const'), x))
+            attributes = '\n    ' + '\n    '.join(sorted_attrs) + '\n'
         else:
             attributes = ''
 
@@ -116,7 +105,7 @@ class Phpclass:
 
         return template.format(
             **self.context_data()
-        ).replace('\t', '    ')  # Make generated code PSR2 compliant
+        ).replace('\t', '    ')
 
     def save(self, root_location):
         path = os.path.join(root_location, self.class_namespace.replace('\\', '/') + '.php')
@@ -165,10 +154,15 @@ class Phpmethod:
         return hash(self.name)
 
     def params_code(self):
-        length = sum(len(s) for s in self.params)
-        if length > 40:
-            return '\n\t\t' + ',\n\t\t'.join(self.params) + '\n\t'
+        # Improved formatting for long parameter lists (PSR-12 style)
+        # If parameters are long, break them into multiple lines with proper indentation
+        raw_length = sum(len(s) for s in self.params)
+        
+        if raw_length > 80 or len(self.params) > 3:
+            # Multi-line formatting
+            return '\n        ' + ',\n        '.join(self.params) + '\n    '
         else:
+            # Single-line formatting
             return ', '.join(self.params)
 
     def return_type_code(self):
@@ -181,8 +175,8 @@ class Phpmethod:
             return ''
 
         docstring = '/**'
-        docstring += '\n\t *' + '\n\t *'.join(" {}".format(line.strip()) if len(line.strip()) else '' for line in self.docstring)
-        docstring += '\n\t */\n\t'
+        docstring += '\n     *' + '\n     *'.join(" {}".format(line.strip()) if len(line.strip()) else '' for line in self.docstring)
+        docstring += '\n     */\n    '
         return docstring
 
     def add_body_code(self, code):
@@ -195,10 +189,11 @@ class Phpmethod:
             body_string += self.body_start
         for body_code in self.body:
             if body_code:
-                body_string += '\n\t\t'.join(s.strip('\t') for s in body_code.splitlines()) + '\n\n\t\t'
+                # Ensure body indentation is correct (8 spaces for method body)
+                body_string += '\n        '.join(s.strip() for s in body_code.splitlines()) + '\n\n        '
         for body_code in self.end_body:
             if body_code:
-                body_string += '\n\t\t'.join(s.strip('\t') for s in body_code.splitlines()) + '\n\n\t\t'
+                body_string += '\n        '.join(s.strip() for s in body_code.splitlines()) + '\n\n        '
         if self.body_return:
             body_string += self.body_return
         return body_string.strip()
@@ -214,84 +209,85 @@ class Phpmethod:
             params=self.params_code(),
             return_type=self.return_type_code(),
             body=self.body_code(),
-            brace_break=' ' if len(self.params_code()) > 40 else '\n\t'
-        ).replace('\t', '    ')  # Make generated code PSR2 compliant
+            # Adjust brace behavior based on param length
+            brace_break='' if '\n' not in self.params_code() else '' 
+        ).replace('\t', '    ')
 
 ###############################################################################
 # XML
 ###############################################################################
 class Xmlnode:
 
-	def __init__(self, node_name, attributes=None, nodes=None, node_text=None, match_attributes=None, xsd=False):
+    def __init__(self, node_name, attributes=None, nodes=None, node_text=None, match_attributes=None, xsd=False):
 
-		if nodes :
-			nodes = [x for x in nodes if x]
+        if nodes :
+            nodes = [x for x in nodes if x]
 
-		self.node_name = node_name
-		self.node_text = node_text
-		self.attributes = attributes if attributes else {}
-		self.match_attributes = match_attributes if match_attributes else ['name', 'id', 'for', 'referenceId']
-		self.nodes = nodes if nodes else []
-		self.xsd = xsd
+        self.node_name = node_name
+        self.node_text = node_text
+        self.attributes = attributes if attributes else {}
+        self.match_attributes = match_attributes if match_attributes else ['name', 'id', 'for', 'referenceId']
+        self.nodes = nodes if nodes else []
+        self.xsd = xsd
 
-	def __str__(self):
-		return self.node_name
+    def __str__(self):
+        return self.node_name
 
-	def __eq__(self, other):
-		if self.node_name != other.node_name:
-			return False
-		for key in self.match_attributes:
-			if key in self.attributes and self.attributes[key] != other.attributes[key]:
-					return False
-		return True
+    def __eq__(self, other):
+        if self.node_name != other.node_name:
+            return False
+        for key in self.match_attributes:
+            if key in self.attributes and self.attributes[key] != other.attributes[key]:
+                    return False
+        return True
 
-	def output_tree(self, depth=0):
-		output = ("  " * depth) + "<{} {}>\n".format(self.node_name, self.attributes)
-		for node in self.nodes:
-			output += node.output_tree(depth + 1)
-		return output
+    def output_tree(self, depth=0):
+        output = ("  " * depth) + "<{} {}>\n".format(self.node_name, self.attributes)
+        for node in self.nodes:
+            output += node.output_tree(depth + 1)
+        return output
 
-	def add_nodes(self, nodes):
-		for node in nodes:
-			if node in self.nodes and node.nodes:
-				index = self.nodes.index(node)
-				self.nodes[index].add_nodes(node.nodes)
-			elif node not in self.nodes:
-				self.nodes.append(node)
+    def add_nodes(self, nodes):
+        for node in nodes:
+            if node in self.nodes and node.nodes:
+                index = self.nodes.index(node)
+                self.nodes[index].add_nodes(node.nodes)
+            elif node not in self.nodes:
+                self.nodes.append(node)
 
-	def generate(self, element=None):
-		if element != None:
-			el = SubElement(element, self.node_name)
-		else:
-			el = Element(self.node_name)
-			if not self.xsd:
-				el.set('xmlns:xsi',"http://www.w3.org/2001/XMLSchema-instance")
+    def generate(self, element=None):
+        if element != None:
+            el = SubElement(element, self.node_name)
+        else:
+            el = Element(self.node_name)
+            if not self.xsd:
+                el.set('xmlns:xsi',"http://www.w3.org/2001/XMLSchema-instance")
 
-		if self.node_text:
-			el.text = self.node_text
+        if self.node_text:
+            el.text = self.node_text
 
-		for key, value in self.attributes.items():
-			el.set(str(key), str(value))
+        for key, value in self.attributes.items():
+            el.set(str(key), str(value))
 
-		for node in self.nodes:
-			node.generate(el)
+        for node in self.nodes:
+            node.generate(el)
 
-		if element == None:
-			output = tostring(el, 'utf-8')
-			reparsed = minidom.parseString(output)
-			if self.xsd:
-				return reparsed.toprettyxml(indent="\t").split('\n', 1)[-1]
-			else:
-				return reparsed.toprettyxml(indent="\t")
+        if element == None:
+            output = tostring(el, 'utf-8')
+            reparsed = minidom.parseString(output)
+            if self.xsd:
+                return reparsed.toprettyxml(indent="\t").split('\n', 1)[-1]
+            else:
+                return reparsed.toprettyxml(indent="\t")
 
-	def save(self, xml_path):
-		try:
-			os.makedirs(os.path.dirname(xml_path))
-		except Exception:
-			pass
+    def save(self, xml_path):
+        try:
+            os.makedirs(os.path.dirname(xml_path))
+        except Exception:
+            pass
 
-		with open(xml_path, 'w+', encoding='utf-8') as xml_file:
-			xml_file.writelines(self.generate())
+        with open(xml_path, 'w+', encoding='utf-8') as xml_file:
+            xml_file.writelines(self.generate())
 
 
 ###############################################################################
@@ -299,423 +295,429 @@ class Xmlnode:
 ###############################################################################
 class StaticFile:
 
-	def __init__(self, file_name, body=None, template_file='staticfile.tmpl', context_data=None):
-		self.file_name = file_name
-		self.template_file = os.path.join(TEMPLATE_DIR, template_file)
-		self._context_data = context_data if context_data else {}
-		self._context_data['body'] = [body] if body else []
+    def __init__(self, file_name, body=None, template_file='staticfile.tmpl', context_data=None):
+        self.file_name = file_name
+        self.template_file = os.path.join(TEMPLATE_DIR, template_file)
+        self._context_data = context_data if context_data else {}
+        self._context_data['body'] = [body] if body else []
 
-	def __add__(self, other):
-		for code in other._context_data['body']:
-			if code not in self._context_data['body']:
-				self._context_data['body'].append(code)
-		return self
+    def __add__(self, other):
+        for code in other._context_data['body']:
+            if code not in self._context_data['body']:
+                self._context_data['body'].append(code)
+        return self
 
-	def context_data(self):
-		data = self._context_data
-		data['body'] = "\n\n".join(self._context_data['body'])
-		return self._context_data
+    def context_data(self):
+        data = self._context_data
+        data['body'] = "\n\n".join(self._context_data['body'])
+        return self._context_data
 
-	def generate(self):
-		with open(self.template_file, 'rb') as tmpl:
-			template = tmpl.read().decode('utf-8')
+    def generate(self):
+        with open(self.template_file, 'rb') as tmpl:
+            template = tmpl.read().decode('utf-8')
 
-		return template.format(
-			**self.context_data()
-		)
+        return template.format(
+            **self.context_data()
+        )
 
-	def save(self, file_path):
-		try:
-			os.makedirs(os.path.dirname(file_path))
-		except Exception:
-			pass
+    def save(self, file_path):
+        try:
+            os.makedirs(os.path.dirname(file_path))
+        except Exception:
+            pass
 
-		with open(file_path, 'w+', encoding='utf-8') as static_file:
-			static_file.writelines(self.generate())
+        with open(file_path, 'w+', encoding='utf-8') as static_file:
+            static_file.writelines(self.generate())
 
 ###############################################################################
-# Template files
+# Readme Template
 ###############################################################################
 class Readme:
 
-	def __init__(self, file_name='README.md', body=None, template_file='readme.tmpl', context_data=None, configuration=None, specifications=None, attributes=None):
-		self.file_name = file_name
-		self.template_file = os.path.join(TEMPLATE_DIR, template_file)
-		self._context_data = context_data if context_data else {}
-		self._context_data['body'] = [body] if body else []
-		self._context_data['configuration'] = [configuration] if configuration else []
-		self._context_data['specifications'] = [specifications] if specifications else []
-		self._context_data['attributes'] = [attributes] if attributes else []
+    def __init__(self, file_name='README.md', body=None, template_file='readme.tmpl', context_data=None, configuration=None, specifications=None, attributes=None):
+        self.file_name = file_name
+        self.template_file = os.path.join(TEMPLATE_DIR, template_file)
+        self._context_data = context_data if context_data else {}
+        self._context_data['body'] = [body] if body else []
+        self._context_data['configuration'] = [configuration] if configuration else []
+        self._context_data['specifications'] = [specifications] if specifications else []
+        self._context_data['attributes'] = [attributes] if attributes else []
 
-	def __add__(self, other):
-		for code in other._context_data['body']:
-			if code not in self._context_data['body']:
-				self._context_data['body'].append(code)
-		for code in other._context_data['configuration']:
-			if code not in self._context_data['configuration']:
-				self._context_data['configuration'].append(code)
-		for code in other._context_data['specifications']:
-			if code not in self._context_data['specifications']:
-				self._context_data['specifications'].append(code)
-		for code in other._context_data['attributes']:
-			if code not in self._context_data['attributes']:
-				self._context_data['attributes'].append(code)
-		return self
+    def __add__(self, other):
+        for code in other._context_data['body']:
+            if code not in self._context_data['body']:
+                self._context_data['body'].append(code)
+        for code in other._context_data['configuration']:
+            if code not in self._context_data['configuration']:
+                self._context_data['configuration'].append(code)
+        for code in other._context_data['specifications']:
+            if code not in self._context_data['specifications']:
+                self._context_data['specifications'].append(code)
+        for code in other._context_data['attributes']:
+            if code not in self._context_data['attributes']:
+                self._context_data['attributes'].append(code)
+        return self
 
-	def context_data(self):
-		data = self._context_data
-		data['body'] = "\n\n".join(self._context_data['body'])
-		data['configuration'] = "\n\n".join(self._context_data['configuration'])
-		data['specifications'] = "\n\n".join(self._context_data['specifications'])
-		data['attributes'] = "\n\n".join(self._context_data['attributes'])
-		return self._context_data
+    def context_data(self):
+        data = self._context_data
+        data['body'] = "\n\n".join(self._context_data['body'])
+        data['configuration'] = "\n\n".join(self._context_data['configuration'])
+        data['specifications'] = "\n\n".join(self._context_data['specifications'])
+        data['attributes'] = "\n\n".join(self._context_data['attributes'])
+        return self._context_data
 
-	def generate(self):
-		with open(self.template_file, 'rb') as tmpl:
-			template = tmpl.read().decode('utf-8')
+    def generate(self):
+        with open(self.template_file, 'rb') as tmpl:
+            template = tmpl.read().decode('utf-8')
 
-		return template.format(
-			**self.context_data()
-		)
+        return template.format(
+            **self.context_data()
+        )
 
-	def save(self, file_path):
-		try:
-			os.makedirs(os.path.dirname(file_path))
-		except Exception:
-			pass
+    def save(self, file_path):
+        try:
+            os.makedirs(os.path.dirname(file_path))
+        except Exception:
+            pass
 
-		with open(file_path, 'w+', encoding='utf-8') as static_file:
-			static_file.writelines(self.generate())
+        with open(file_path, 'w+', encoding='utf-8') as static_file:
+            static_file.writelines(self.generate())
 
 
 ###############################################################################
-# GraphQl Object Type
+# GraphQl Objects
 ###############################################################################
 class GraphQlSchema:
-	template_file = os.path.join(TEMPLATE_DIR, 'graphqlschema.tmpl')
+    template_file = os.path.join(TEMPLATE_DIR, 'graphqlschema.tmpl')
 
-	def __init__(self):
-		self.object_types = []
+    def __init__(self):
+        self.object_types = []
 
-	def __add__(self, other):
-		for object_type in other.object_types:
-			self.add_objecttype(object_type)
-		return self
+    def __add__(self, other):
+        for object_type in other.object_types:
+            self.add_objecttype(object_type)
+        return self
 
-	def add_objecttype(self, object_type):
-		if object_type in self.object_types:
-			object_type_index = self.object_types.index(object_type)
-			self.object_types[object_type_index] = self.object_types[object_type_index] + object_type
-		else:
-			self.object_types.append(object_type)
+    def add_objecttype(self, object_type):
+        if object_type in self.object_types:
+            object_type_index = self.object_types.index(object_type)
+            self.object_types[object_type_index] = self.object_types[object_type_index] + object_type
+        else:
+            self.object_types.append(object_type)
 
-	def context_data(self):
-		object_types = '\n\n'.join(t.generate() for t in self.object_types)
-		if object_types:
-			object_types = '\n' + object_types
+    def context_data(self):
+        object_types = '\n\n'.join(t.generate() for t in self.object_types)
+        if object_types:
+            object_types = '\n' + object_types
 
-		return {
-			'object_types': object_types
-		}
+        return {
+            'object_types': object_types
+        }
 
-	def generate(self):
-		with open(self.template_file, 'rb') as tmpl:
-			template = tmpl.read().decode('utf-8')
+    def generate(self):
+        with open(self.template_file, 'rb') as tmpl:
+            template = tmpl.read().decode('utf-8')
 
-		return template.format(
-			**self.context_data()
-		).replace('\t', '    ')  # Make generated code PSR2 compliant
+        return template.format(
+            **self.context_data()
+        ).replace('\t', '    ')
 
-	def save(self, path):
-		try:
-			os.makedirs(os.path.dirname(path))
-		except Exception:
-			pass
+    def save(self, path):
+        try:
+            os.makedirs(os.path.dirname(path))
+        except Exception:
+            pass
 
-		with open(path, 'w+', encoding='utf-8') as class_file:
-			class_file.writelines(self.generate())
+        with open(path, 'w+', encoding='utf-8') as class_file:
+            class_file.writelines(self.generate())
 
 
 class GraphQlObjectType:
 
-	def __init__(self, type, **kwargs):
+    def __init__(self, type, **kwargs):
 
-		self.type = type
-		self.type_declaration = kwargs.get('type_declaration', 'type')
-		self.body = [kwargs.get('body', '')]
-		self.end_body = [kwargs.get('end_body', '')]
-		self.template_file = os.path.join(TEMPLATE_DIR, 'graphqlobject.tmpl')
-		self.object_items = []
+        self.type = type
+        self.type_declaration = kwargs.get('type_declaration', 'type')
+        self.body = [kwargs.get('body', '')]
+        self.end_body = [kwargs.get('end_body', '')]
+        self.template_file = os.path.join(TEMPLATE_DIR, 'graphqlobject.tmpl')
+        self.object_items = []
 
-	def __eq__(self, other):
-		return self.type == other.type
+    def __eq__(self, other):
+        return self.type == other.type
 
-	def __add__(self, other):
-		for item in other.object_items:
-			self.add_objectitem(item)
-		for code in other.body:
-			if code not in self.body:
-				self.body.append(code)
-		for code in other.end_body:
-			if code not in self.end_body:
-				self.end_body.insert(0, code)
-		return self
+    def __add__(self, other):
+        for item in other.object_items:
+            self.add_objectitem(item)
+        for code in other.body:
+            if code not in self.body:
+                self.body.append(code)
+        for code in other.end_body:
+            if code not in self.end_body:
+                self.end_body.insert(0, code)
+        return self
 
-	def __hash__(self):
-		return hash(self.type)
+    def __hash__(self):
+        return hash(self.type)
 
-	def add_objectitem(self, object_item):
-		if object_item in self.object_items:
-			object_type_index = self.object_items.index(object_item)
-			self.object_items[object_type_index] = self.object_items[object_type_index] + object_item
-		else:
-			self.object_items.append(object_item)
+    def add_objectitem(self, object_item):
+        if object_item in self.object_items:
+            object_type_index = self.object_items.index(object_item)
+            self.object_items[object_type_index] = self.object_items[object_type_index] + object_item
+        else:
+            self.object_items.append(object_item)
 
-	def body_code(self):
-		body_string = ''
-		for body_code in self.body:
-			if body_code:
-				body_string += '\n\t'.join(s.strip('\t') for s in body_code.splitlines()) + '\n\n\t'
-		return body_string.strip()
+    def body_code(self):
+        body_string = ''
+        for body_code in self.body:
+            if body_code:
+                body_string += '\n\t'.join(s.strip('\t') for s in body_code.splitlines()) + '\n\n\t'
+        return body_string.strip()
 
-	def context_data(self):
-		object_items = '\n'.join(i.generate() for i in self.object_items)
-		if object_items:
-			object_items = '\n' + object_items
+    def context_data(self):
+        object_items = '\n'.join(i.generate() for i in self.object_items)
+        if object_items:
+            object_items = '\n' + object_items
 
-		return {
-			'type_declaration': self.type_declaration,
-			'type': self.type,
-			'object_items': object_items,
-			'body': self.body_code()
-		}
+        return {
+            'type_declaration': self.type_declaration,
+            'type': self.type,
+            'object_items': object_items,
+            'body': self.body_code()
+        }
 
-	def generate(self):
-		with open(self.template_file, 'rb') as tmpl:
-			template = tmpl.read().decode('utf-8')
+    def generate(self):
+        with open(self.template_file, 'rb') as tmpl:
+            template = tmpl.read().decode('utf-8')
 
-		return template.format(
-			**self.context_data()
-		).replace('\t', '    ') # Make generated code PSR2 compliant
+        return template.format(
+            **self.context_data()
+        ).replace('\t', '    ')
 
 
 class GraphQlObjectItem:
 
-	def __init__(self, item_identifier, **kwargs):
+    def __init__(self, item_identifier, **kwargs):
 
-		self.item_identifier = item_identifier
-		self.item_type = kwargs.get('item_type', 'String')
-		if self.item_type:
-			self.item_type = ': ' + self.item_type
-		self.item_arguments = kwargs.get('item_arguments', '')
-		self.item_resolver = kwargs.get('item_resolver', '')
-		self.item_description = kwargs.get('description', '')
-		self.item_input = kwargs.get('item_input', '')
-		self.base_type = kwargs.get('base_type', '')
-		if self.item_description:
-			if self.base_type == 'Mutation':
-				self.item_description = '@doc(description: "Input {}.")'.format(self.item_description)
-			else:
-				self.item_description = '@doc(description: "Query by {}.")'.format(self.item_description)
-		self.item_cache_identity = kwargs.get('item_cache_identity', '')
-		self.body = [kwargs.get('body', '')]
-		self.end_body = [kwargs.get('end_body', '')]
-		self.template_file = os.path.join(TEMPLATE_DIR, 'graphqlobjectitem.tmpl')
-		if self.item_resolver:
-			self.item_resolver = '@resolver( class: "{item_resolver}")'.format(item_resolver=self.item_resolver)
-		if self.item_cache_identity:
-			self.item_cache_identity = '@cache( cacheIdentity: "{item_cache_identity}")'.format(item_cache_identity=self.item_cache_identity)
-		if self.item_arguments:
-			arguments = []
-			for argument in self.item_arguments.split(','):
-				if self.base_type == 'Mutation':
-					arguments.append('\t\t\t{argument}: String @doc(description: "Input {argument}.")'.format(argument=argument))
-				else:
-					arguments.append('\t\t\t{argument}: String @doc(description: "Query by {argument}.")'.format(argument=argument))
-			self.item_arguments = '(\n' + ",\n".join(arguments) + '\n\t)'
-		if self.item_input:
-			self.item_arguments = '(input: {item_input})'.format(item_input=self.item_input)
+        self.item_identifier = item_identifier
+        self.item_type = kwargs.get('item_type', 'String')
+        if self.item_type:
+            self.item_type = ': ' + self.item_type
+        self.item_arguments = kwargs.get('item_arguments', '')
+        self.item_resolver = kwargs.get('item_resolver', '')
+        self.item_description = kwargs.get('description', '')
+        self.item_input = kwargs.get('item_input', '')
+        self.base_type = kwargs.get('base_type', '')
+        if self.item_description:
+            if self.base_type == 'Mutation':
+                self.item_description = '@doc(description: "Input {}.")'.format(self.item_description)
+            else:
+                self.item_description = '@doc(description: "Query by {}.")'.format(self.item_description)
+        self.item_cache_identity = kwargs.get('item_cache_identity', '')
+        self.body = [kwargs.get('body', '')]
+        self.end_body = [kwargs.get('end_body', '')]
+        self.template_file = os.path.join(TEMPLATE_DIR, 'graphqlobjectitem.tmpl')
+        if self.item_resolver:
+            self.item_resolver = '@resolver( class: "{item_resolver}")'.format(item_resolver=self.item_resolver)
+        if self.item_cache_identity:
+            self.item_cache_identity = '@cache( cacheIdentity: "{item_cache_identity}")'.format(item_cache_identity=self.item_cache_identity)
+        if self.item_arguments:
+            arguments = []
+            for argument in self.item_arguments.split(','):
+                if self.base_type == 'Mutation':
+                    arguments.append('\t\t\t{argument}: String @doc(description: "Input {argument}.")'.format(argument=argument))
+                else:
+                    arguments.append('\t\t\t{argument}: String @doc(description: "Query by {argument}.")'.format(argument=argument))
+            self.item_arguments = '(\n' + ",\n".join(arguments) + '\n\t)'
+        if self.item_input:
+            self.item_arguments = '(input: {item_input})'.format(item_input=self.item_input)
 
-	def __eq__(self, other):
-		return self.item_identifier == other.item_identifier
+    def __eq__(self, other):
+        return self.item_identifier == other.item_identifier
 
-	def __add__(self, other):
-		for code in other.body:
-			if code not in self.body:
-				self.body.append(code)
-		for code in other.item_identifier:
-			if code not in self.item_identifier:
-				self.body.append(code)
-		for code in other.end_body:
-			if code not in self.end_body:
-				self.end_body.insert(0, code)
-		return self
+    def __add__(self, other):
+        for code in other.body:
+            if code not in self.body:
+                self.body.append(code)
+        for code in other.item_identifier:
+            if code not in self.item_identifier:
+                self.body.append(code)
+        for code in other.end_body:
+            if code not in self.end_body:
+                self.end_body.insert(0, code)
+        return self
 
-	def __hash__(self):
-		return hash(self.item_type)
+    def __hash__(self):
+        return hash(self.item_type)
 
-	def generate(self):
-		with open(self.template_file, 'rb') as tmpl:
-			template = tmpl.read().decode('utf-8')
+    def generate(self):
+        with open(self.template_file, 'rb') as tmpl:
+            template = tmpl.read().decode('utf-8')
 
-		return template.format(
-			item_identifier=self.item_identifier,
-			item_type=self.item_type,
-			item_resolver=self.item_resolver,
-			item_description=self.item_description,
-			item_cache_identity=self.item_cache_identity,
-			item_arguments=self.item_arguments
-		).replace('\t', '    ')  # Make generated code PSR2 compliant
+        return template.format(
+            item_identifier=self.item_identifier,
+            item_type=self.item_type,
+            item_resolver=self.item_resolver,
+            item_description=self.item_description,
+            item_cache_identity=self.item_cache_identity,
+            item_arguments=self.item_arguments
+        ).replace('\t', '    ')
 
 ###############################################################################
 # Module
 ###############################################################################
 class Module:
 
-	def __init__(self, package, name, description='', license=None):
-		self.package = upperfirst(package)
-		self.name = upperfirst(name)
-		self.description = description
-		self.license = license
-		self._graphqlschemas = {}
-		self._xmls = {}
-		self._classes = {}
-		self._static_files = {}
+    def __init__(self, package, name, description='', license=None):
+        self.package = upperfirst(package)
+        self.name = upperfirst(name)
+        self.description = description
+        self.license = license
+        self._graphqlschemas = {}
+        self._xmls = {}
+        self._classes = {}
+        self._static_files = {}
 
-		# minimum requirements for Magento2 module
-		etc_module = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:framework:Module/etc/module.xsd"}, nodes=[
-			Xmlnode('module', attributes={'name': self.module_name})
-		])
-		self.add_xml('etc/module.xml', etc_module)
+        # Basic Magento2 module XML
+        etc_module = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:framework:Module/etc/module.xsd"}, nodes=[
+            Xmlnode('module', attributes={'name': self.module_name})
+        ])
+        self.add_xml('etc/module.xml', etc_module)
 
-		composer_name = '{}/module-{}'.format(self.package.lower(), self.name.lower())
-		self.add_static_file(
-			'.',
-			Readme(
-				context_data={
-					'package_name': upperfirst(self.package),
-					'name': upperfirst(self.name),
-					'module_name': self.module_name,
-					'composer_name': composer_name,
-					'description': self.description,
-				}
-			)
-		)
+        composer_name = '{}/module-{}'.format(self.package.lower(), self.name.lower())
+        self.add_static_file(
+            '.',
+            Readme(
+                context_data={
+                    'package_name': upperfirst(self.package),
+                    'name': upperfirst(self.name),
+                    'module_name': self.module_name,
+                    'composer_name': composer_name,
+                    'description': self.description,
+                }
+            )
+        )
 
-		self._composer = OrderedDict()
-		self._composer['name'] = composer_name
-		self._composer['description'] = self.description
-		self._composer['type'] = 'magento2-module'
-		self._composer['license'] = 'proprietary'
-		self._composer['authors'] = [
-				{
-					'name': 'Mage2Gen',
-					'email': 'info@mage2gen.com'
-				}
-			]
-		self._composer['minimum-stability'] = 'dev'
-		self._composer['require'] = {}
-		self._composer['autoload'] = {
-		        'files': [
-		            'registration.php'
-		        ],
-		        'psr-4': {
-		            "{}\\{}\\".format(self.package, self.name): ""
-		        }
-		    }
+        # Dynamic Composer Configuration
+        self._composer = OrderedDict()
+        self._composer['name'] = composer_name
+        self._composer['description'] = self.description
+        self._composer['type'] = 'magento2-module'
+        self._composer['license'] = 'proprietary'
+        
+        # Use Package name as Author, generic email
+        self._composer['authors'] = [
+            {
+                'name': self.package,
+                'email': 'info@example.com'
+            }
+        ]
+        self._composer['minimum-stability'] = 'dev'
+        self._composer['require'] = {
+            "php": "~7.4.0||~8.1.0||~8.2.0||~8.3.0",
+            "magento/framework": "*"
+        }
+        self._composer['autoload'] = {
+                'files': [
+                    'registration.php'
+                ],
+                'psr-4': {
+                    "{}\\{}\\".format(self.package, self.name): ""
+                }
+            }
 
-	@property
-	def module_name(self):
-	    return '{}_{}'.format(self.package, self.name)
+    @property
+    def module_name(self):
+        return '{}_{}'.format(self.package, self.name)
 
-	@classmethod
-	def load_module(cls, data):
-		# convert data
-		return cls('Experius', 'Test')
+    @classmethod
+    def load_module(cls, data):
+        # convert data
+        return cls('Experius', 'Test')
 
-	def generate_module(self, root_location):
-		if not os.path.exists(root_location):
-			raise Exception('Location does not exists')
+    def generate_module(self, root_location):
+        if not os.path.exists(root_location):
+            raise Exception('Location does not exists')
 
-		location = os.path.join(root_location, self.package, self.name)
+        location = os.path.join(root_location, self.package, self.name)
 
-		try:
-			os.makedirs(location)
-		except Exception:
-			pass
+        try:
+            os.makedirs(location)
+        except Exception:
+            pass
 
-		context_data = {'module_name': self.module_name, 'license': ''}
+        context_data = {'module_name': self.module_name, 'license': ''}
 
-		if self.license:
-			self._composer['license'] = self.license.identifier
-			self.add_static_file('', StaticFile('LICENSE.txt', body=self.license.get_text()))
-			self.add_static_file('', StaticFile('COPYING.txt', body=self.license.get_short_text()))
-			context_data = {'module_name': self.module_name, 'license': self.license.get_php_docstring()}
+        if self.license:
+            self._composer['license'] = self.license.identifier
+            self.add_static_file('', StaticFile('LICENSE.txt', body=self.license.get_text()))
+            self.add_static_file('', StaticFile('COPYING.txt', body=self.license.get_short_text()))
+            context_data = {'module_name': self.module_name, 'license': self.license.get_php_docstring()}
 
-		self.add_static_file('.', StaticFile('registration.php', template_file='registration.tmpl',context_data=context_data))
+        self.add_static_file('.', StaticFile('registration.php', template_file='registration.tmpl',context_data=context_data))
 
-		# Add composer as static file
-		self.add_static_file('', StaticFile('composer.json', body=json.dumps(self._composer, indent=4)))
+        # Add composer as static file
+        self.add_static_file('', StaticFile('composer.json', body=json.dumps(self._composer, indent=4)))
 
-		for class_name, phpclass in self._classes.items():
-			phpclass.save(root_location)
+        for class_name, phpclass in self._classes.items():
+            phpclass.save(root_location)
 
-		for graphqlschema_file, graphqlobjecttype in self._graphqlschemas.items():
-			path = os.path.join(location, graphqlschema_file)
-			graphqlobjecttype.save(path)
+        for graphqlschema_file, graphqlobjecttype in self._graphqlschemas.items():
+            path = os.path.join(location, graphqlschema_file)
+            graphqlobjecttype.save(path)
 
-		for xml_file, node in self._xmls.items():
-			path = os.path.join(location, xml_file)
-			node.save(path)
+        for xml_file, node in self._xmls.items():
+            path = os.path.join(location, xml_file)
+            node.save(path)
 
-		for path, static_file in self._static_files.items():
-			path = os.path.join(location, path)
-			static_file.save(path)
+        for path, static_file in self._static_files.items():
+            path = os.path.join(location, path)
+            static_file.save(path)
 
-	def add_composer_require(self, require, version = "*", dev = False):
-		if dev:
-			self._composer['require-dev'][require] = version
-		else:
-			self._composer['require'][require] = version
+    def add_composer_require(self, require, version = "*", dev = False):
+        if dev:
+            self._composer['require-dev'][require] = version
+        else:
+            self._composer['require'][require] = version
 
-	def add_class(self, phpclass):
-		root_namespace = '{}\{}'.format(self.package, self.name)
-		if root_namespace not in phpclass.class_namespace:
-			phpclass.class_namespace = '{}\{}'.format(root_namespace, phpclass.class_namespace)
+    def add_class(self, phpclass):
+        root_namespace = '{}\{}'.format(self.package, self.name)
+        if root_namespace not in phpclass.class_namespace:
+            phpclass.class_namespace = '{}\{}'.format(root_namespace, phpclass.class_namespace)
 
-		current_class = self._classes.get(phpclass.class_namespace)
-		if current_class:
-			current_class += phpclass
-		else:
-			current_class = phpclass
+        current_class = self._classes.get(phpclass.class_namespace)
+        if current_class:
+            current_class += phpclass
+        else:
+            current_class = phpclass
 
-		current_class.license = self.license
+        current_class.license = self.license
 
-		self._classes[current_class.class_namespace] = current_class
+        self._classes[current_class.class_namespace] = current_class
 
-	def add_graphqlschema(self, graphqlschema_file, schema):
-		current_schema = self._graphqlschemas.get(graphqlschema_file)
-		if current_schema:
-			current_schema += schema
-		else:
-			self._graphqlschemas[graphqlschema_file] = schema
+    def add_graphqlschema(self, graphqlschema_file, schema):
+        current_schema = self._graphqlschemas.get(graphqlschema_file)
+        if current_schema:
+            current_schema += schema
+        else:
+            self._graphqlschemas[graphqlschema_file] = schema
 
-	def add_xml(self, xml_file, node):
-		current_xml = self._xmls.get(xml_file)
-		if current_xml:
-			if current_xml != node:
-				raise Exception('Cant merge XML nodes root node must be the same')
-			current_xml.add_nodes(node.nodes)
-		else:
-			self._xmls[xml_file] = node
+    def add_xml(self, xml_file, node):
+        current_xml = self._xmls.get(xml_file)
+        if current_xml:
+            if current_xml != node:
+                raise Exception('Cant merge XML nodes root node must be the same')
+            current_xml.add_nodes(node.nodes)
+        else:
+            self._xmls[xml_file] = node
 
-	def add_static_file(self, path, staticfile):
-		full_name = os.path.join(path, staticfile.file_name)
+    def add_static_file(self, path, staticfile):
+        full_name = os.path.join(path, staticfile.file_name)
 
-		current_staticfile = self._static_files.get(full_name)
-		if current_staticfile:
-			current_staticfile += staticfile
-		else:
-			current_staticfile = staticfile
+        current_staticfile = self._static_files.get(full_name)
+        if current_staticfile:
+            current_staticfile += staticfile
+        else:
+            current_staticfile = staticfile
 
-		self._static_files[full_name] = current_staticfile
+        self._static_files[full_name] = current_staticfile
