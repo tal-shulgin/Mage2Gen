@@ -304,8 +304,9 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 			SnippetParam(
 				name='attribute_code',
 				description='Default to lowercase of label',
-				regex_validator= r'^[a-zA-Z]{1}\w{0,29}$',
-				error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 30 characters'),
+				# Change {0,29} to {0,59}
+				regex_validator= r'^[a-zA-Z]{1}\w{0,59}$', 
+				error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 60 characters'),
 			 SnippetParam(
 				 name='unique',
 				 required=True,
