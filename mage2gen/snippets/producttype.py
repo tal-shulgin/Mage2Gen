@@ -138,45 +138,67 @@ class ProductTypeSnippet(Snippet):
             product_type_class_name="\{}".format(product_type_class_name)
         )
 
-        setupType = 'Install'
-        if upgrade_data:
-            setupType = 'Upgrade'
-
-        install_data = Phpclass('Setup\\{}Data'.format(setupType),
-            implements=['{}DataInterface'.format(setupType)],
+        # Generate Data Patch instead of InstallData
+        patch_name = 'Create{}ProductType'.format(upperfirst(product_type_code))
+        
+        install_patch = Phpclass(
+            'Setup\\Patch\\Data\\{}'.format(patch_name),
+            implements=['DataPatchInterface'],
             dependencies=[
-                'Magento\\Framework\\Setup\\{}DataInterface'.format(setupType),
-                'Magento\\Framework\\Setup\\ModuleContextInterface',
+                'Magento\\Framework\\Setup\\Patch\\DataPatchInterface',
                 'Magento\\Framework\\Setup\\ModuleDataSetupInterface',
                 'Magento\\Eav\\Setup\\EavSetup',
-                'Magento\\Eav\\Setup\\EavSetupFactory'],
-            attributes=[])
+                'Magento\\Eav\\Setup\\EavSetupFactory'
+            ],
+            attributes=[
+                '/** @var ModuleDataSetupInterface */',
+                'private $moduleDataSetup;',
+                '/** @var EavSetupFactory */',
+                'private $eavSetupFactory;'
+            ]
+        )
 
-        install_data.add_method(Phpmethod(
+        install_patch.add_method(Phpmethod(
             '__construct',
-            params=['private EavSetupFactory $eavSetupFactory'],
-            body="",
+            params=[
+                'ModuleDataSetupInterface $moduleDataSetup',
+                'EavSetupFactory $eavSetupFactory'
+            ],
+            body='$this->moduleDataSetup = $moduleDataSetup;\n$this->eavSetupFactory = $eavSetupFactory;',
             docstring=[
                 'Constructor',
                 '',
-                '@param \\Magento\\Eav\\Setup\\EavSetupFactory $eavSetupFactory'
+                '@param ModuleDataSetupInterface $moduleDataSetup',
+                '@param EavSetupFactory $eavSetupFactory'
             ]
         ))
 
-        install_data.add_method(Phpmethod('{}'.format(setupType.lower()),
-            params=['ModuleDataSetupInterface $setup', 'ModuleContextInterface $context'],
-            body="$eavSetup = $this->eavSetupFactory->create(['setup' => $setup]);",
-            docstring=['{@inheritdoc}']))
-        if upgrade_data:
-            install_data.add_method(Phpmethod('{}'.format(setupType.lower()),
-                params=['ModuleDataSetupInterface $setup', 'ModuleContextInterface $context'],
-                body='if (version_compare($context->getVersion(), "' + from_version + '", "<")) {\n\n    ' + methodBody.replace('\n','\n    ') + '\n}\n'))
-        else:
-            install_data.add_method(Phpmethod('{}'.format(setupType.lower()),
-                params=['ModuleDataSetupInterface $setup', 'ModuleContextInterface $context'],
-                body=methodBody))
+        install_patch.add_method(Phpmethod(
+            'apply',
+            return_type='void',
+            body='$this->moduleDataSetup->getConnection()->startSetup();\n'
+                 '$eavSetup = $this->eavSetupFactory->create([\'setup\' => $this->moduleDataSetup]);\n\n' +
+                 methodBody + 
+                 '\n\n$this->moduleDataSetup->getConnection()->endSetup();',
+            docstring=['{@inheritdoc}']
+        ))
+        
+        install_patch.add_method(Phpmethod(
+            'getDependencies',
+            access='public static',
+            return_type='array',
+            body='return [];',
+            docstring=['{@inheritdoc}']
+        ))
+        
+        install_patch.add_method(Phpmethod(
+            'getAliases',
+            return_type='array',
+            body='return [];',
+            docstring=['{@inheritdoc}']
+        ))
 
-        self.add_class(install_data)
+        self.add_class(install_patch)
 
         self.add_static_file(
             '.',
