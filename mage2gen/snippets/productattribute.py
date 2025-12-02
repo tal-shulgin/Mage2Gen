@@ -76,9 +76,16 @@ class ProductAttributeSnippet(Snippet):
 		value_type = self.FRONTEND_INPUT_VALUE_TYPE.get(frontend_input,'int')
 		value_type = value_type if value_type != 'date' else 'datetime'
 		user_defined = 'true'
-		options = options.split(',') if options else []
-		options_php_array = '"'+'","'.join(x.strip() for x in options) + '"'
-		options_php_array_string = "array('values' => array("+options_php_array+"))"
+		
+		# Only generate options array if specific input types or explicit options
+		options_php_array_string = "''"
+		if options:
+			options_list = options.split(',')
+			options_php_array = '"'+'","'.join(x.strip() for x in options_list) + '"'
+			options_php_array_string = "array('values' => array("+options_php_array+"))"
+		elif frontend_input in ['select', 'multiselect']:
+			# Default empty options only for select types to avoid crashes on text types
+			options_php_array_string = "array('values' => array(''))"
 
 		attribute_code = extra_params.get('attribute_code', None)
 		if not attribute_code:
@@ -90,9 +97,10 @@ class ProductAttributeSnippet(Snippet):
 		if source_model and frontend_input in ['multiselect', 'select']:
 			source_model = "\{}\{}\Model\Product\Attribute\Source\{}::class".format(self._module.package, self._module.name, attribute_code_capitalized)
 			options_array = []
-			for val in options:
-				options_array.append("['value' => '" + val.lower() + "', 'label' => __('" + val + "')]")
-			options_php_array = '[\n' + ',\n'.join(x.strip() for x in options_array) + '\n]'
+			if options:
+				for val in options.split(','):
+					options_array.append("['value' => '" + val.lower().strip() + "', 'label' => __('" + val.strip() + "')]")
+			options_php_array = '[\n' + ',\n'.join(x for x in options_array) + '\n]'
 			self.add_source_model(attribute_code_capitalized, options_php_array, extra_params.get('used_in_product_listing', False))
 			options_php_array_string = "''"
 		elif frontend_input == 'boolean':
@@ -246,8 +254,27 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 		)
 
 	def add_source_model(self, attribute_code_capitalized, options_php_array_string, used_in_product_listing):
-		source_model = Phpclass('Model\\Product\\Attribute\Source\\{}'.format(upperfirst(attribute_code_capitalized)),
-			extends='\\Magento\\Eav\\Model\\Entity\\Attribute\\Source\\AbstractSource')
+		attributes = []
+		dependencies = []
+		
+		if used_in_product_listing:
+			attributes.append('/**\n\t * @var \Magento\Eav\Model\ResourceModel\Entity\AttributeFactory\n\t */\n\tprotected $eavAttrEntity;')
+			dependencies.append('Magento\Eav\Model\ResourceModel\Entity\AttributeFactory')
+
+		source_model = Phpclass(
+			'Model\\Product\\Attribute\Source\\{}'.format(upperfirst(attribute_code_capitalized)),
+			extends='\\Magento\\Eav\\Model\\Entity\\Attribute\\Source\\AbstractSource',
+			attributes=attributes,
+			dependencies=dependencies
+		)
+
+		if used_in_product_listing:
+			source_model.add_method(Phpmethod(
+				'__construct',
+				params=['AttributeFactory $eavAttrEntity'],
+				body='$this->eavAttrEntity = $eavAttrEntity;',
+				docstring=['@param AttributeFactory $eavAttrEntity']
+			))
 
 		source_model.add_method(Phpmethod(
 			'getAllOptions',
