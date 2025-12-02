@@ -77,14 +77,14 @@ class ProductAttributeSnippet(Snippet):
 		value_type = value_type if value_type != 'date' else 'datetime'
 		user_defined = 'true'
 		
-		# Only generate options array if specific input types or explicit options
+		# FIX #352: Only generate options array if inputs need it
 		options_php_array_string = "''"
 		if options:
 			options_list = options.split(',')
 			options_php_array = '"'+'","'.join(x.strip() for x in options_list) + '"'
 			options_php_array_string = "array('values' => array("+options_php_array+"))"
 		elif frontend_input in ['select', 'multiselect']:
-			# Default empty options only for select types to avoid crashes on text types
+			# Default empty options only for select types
 			options_php_array_string = "array('values' => array(''))"
 
 		attribute_code = extra_params.get('attribute_code', None)
@@ -113,14 +113,10 @@ class ProductAttributeSnippet(Snippet):
 		with open(templatePath, 'rb') as tmpl:
 			template = tmpl.read().decode('utf-8')
 
-		is_swatch_option = frontend_input == 'swatch_visual' or frontend_input == 'swatch_text'
-
 		if frontend_input == 'swatch_visual':
 			options_php_array_string = "['values' => ['Black' => '#000000', 'White' => '#ffffff']]"
 		elif frontend_input == 'swatch_text' :
 			options_php_array_string = "['values' => ['Sample' => 'Sample']]"
-		else:
-			options_php_array_string = options_php_array_string
 
 		methodBody = template.format(
 			attribute_code=attribute_code,
@@ -147,7 +143,6 @@ class ProductAttributeSnippet(Snippet):
 		)
 
 		patchType = 'add'
-		# TODO: add Upgrade Attribute Support
 		if upgrade_data:
 			patchType = 'add'
 
@@ -224,7 +219,6 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 
 		self.add_class(install_patch)
 
-		# Catalog Attributes XML | Transport Attribute to Quote Item Product
 		transport_to_quote_item = extra_params.get('transport_to_quote_item', False)
 		if transport_to_quote_item:
 			config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Catalog:etc/catalog_attributes.xsd"}, nodes=[
@@ -257,8 +251,9 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 		attributes = []
 		dependencies = []
 		
+		# FIX #273: Inject dependency
 		if used_in_product_listing:
-			attributes.append('/**\n\t * @var \Magento\Eav\Model\ResourceModel\Entity\AttributeFactory\n\t */\n\tprotected $eavAttrEntity;')
+			attributes.append('/**\n\t * @var \\Magento\\Eav\\Model\\ResourceModel\\Entity\\AttributeFactory\n\t */\n\tprotected $eavAttrEntity;')
 			dependencies.append('Magento\Eav\Model\ResourceModel\Entity\AttributeFactory')
 
 		source_model = Phpclass(
@@ -312,10 +307,8 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 				'getFlatIndexes',
 				body="""
 					$indexes = [];
-
 					$index = 'IDX_' . strtoupper($this->getAttribute()->getAttributeCode());
 					$indexes[$index] = ['type' => 'index', 'fields' => [$this->getAttribute()->getAttributeCode()]];
-				
 					return $indexes;
 				""",
 				return_type='array',
@@ -370,13 +363,7 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 				 required=True,
 				 default=False,
 				 yes_no=True),
-			 # TODO: add Upgrade Attribute Support
-			 # SnippetParam(
-				#  name='upgrade_data',
-				#  default=False,
-				#  yes_no=True
-			 # )
-					  ]
+		]
 
 	@classmethod
 	def extra_params(cls):
@@ -386,13 +373,13 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 				description='Default to lowercase of label',
 				regex_validator= r'^[a-zA-Z]{1}\w{0,59}$',
 				error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 60 characters'),
-			SnippetParam(
+			 SnippetParam(
 				 name='apply_to',
 				 required=False,
 				 default='',
 				 choises=cls.APPLY_TO_CHOICES,
 				 multiple_choices=True),
-			SnippetParam(
+			 SnippetParam(
 				 name='searchable',
 				 required=True,
 				 default=False,

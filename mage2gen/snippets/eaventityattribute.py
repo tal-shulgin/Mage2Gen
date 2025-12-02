@@ -2,19 +2,6 @@
 # Copyright (C) 2016 Derrick Heesbeen
 #
 # This file is part of Mage2Gen.
-#
-# Mage2Gen is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os, locale
 from .. import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, Snippet, SnippetParam, Readme
 from ..utils import upperfirst
@@ -304,7 +291,6 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 			SnippetParam(
 				name='attribute_code',
 				description='Default to lowercase of label',
-				# Change {0,29} to {0,59}
 				regex_validator= r'^[a-zA-Z]{1}\w{0,59}$', 
 				error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. And can\'t be longer then 60 characters'),
 			 SnippetParam(
