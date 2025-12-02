@@ -8,13 +8,15 @@ from tests import utils
 
 class TestSnippetInstall(unittest.TestCase):
 
-	def test_snippet(self):
-		module = Module(package='Package', name='Name', description='Description')
-		snippet = InstallSnippet(module)
-		sample_output = snippet.add()
+    def test_snippet(self):
+        module = Module(package='Package', name='Name', description='Description')
+        snippet = InstallSnippet(module)
+        
+        # Updated to provide the required 'patch_name' argument
+        sample_output = snippet.add(patch_name='InitialData')
 
-		result = utils.CodeSniffer.generate_and_test(module)
-		self.assertTrue(result)
+        result = utils.CodeSniffer.generate_and_test(module)
+        self.assertTrue(result)
 
-	def tearDown(self):
-		utils.CodeSniffer.cleanup()
+    def tearDown(self):
+        utils.CodeSniffer.cleanup()
