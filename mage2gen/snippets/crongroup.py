@@ -43,7 +43,7 @@ class CrongroupSnippet(Snippet):
                 required=True,
                 default='default',
                 description='Cronjob Group',
-                regex_validator=r'^[a-z]{1}[a-z]+$',
+                regex_validator=r'^[a-z]{1}[a-z0-9_]+$',
                 error_message='Only alphanumeric are allowed, and need to start with a alphabetic character.'),
             SnippetParam(
                 name='schedule_generate_every',

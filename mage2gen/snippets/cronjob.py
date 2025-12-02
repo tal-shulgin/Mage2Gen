@@ -94,14 +94,14 @@ class CronjobSnippet(Snippet):
                 name='cronjob_class', 
                 required=True, 
                 description='Cronjob class',
-                regex_validator= r'^[a-zA-Z]{1}[a-zA-Z]+$',
+                regex_validator= r'^[a-zA-Z]{1}[a-zA-Z0-9_]+$',
                 error_message='Only alphanumeric are allowed, and need to start with a alphabetic character.'),
 			SnippetParam(
 				name='cronjob_group',
 				required=True,
 				default='default',
 				description='Cronjob Group',
-				regex_validator=r'^[a-zA-Z]{1}[a-zA-Z]+$',
+				regex_validator=r'^[a-zA-Z]{1}[a-zA-Z0-9_]+$',
 				error_message='Only alphanumeric are allowed, and need to start with a alphabetic character.'),
 			SnippetParam(
                 name='schedule', 
