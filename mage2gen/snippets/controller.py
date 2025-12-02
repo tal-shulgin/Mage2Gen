@@ -155,7 +155,6 @@ class ControllerSnippet(Snippet):
 				'jsonResponse',
 				params=["$response = ''"],
 				body="""
-	$this->http->getHeaders()->clearHeaders();
 $this->http->setHeader('Content-Type', 'application/json');
 return $this->http->setBody(
     $this->serializer->serialize($response)
