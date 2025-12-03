@@ -292,7 +292,7 @@ class CustomerAttributeSnippet(Snippet):
 		elif value_type == 'varchar' and not extra_params.get('field_size'):
 			size = '255'
 		else:
-			size = 'null'
+			size = None
 
 		attributes = {
 			'name': "{}".format(attribute_code),
