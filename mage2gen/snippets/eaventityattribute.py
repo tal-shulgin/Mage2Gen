@@ -184,11 +184,25 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 			]
 		))
 
+		dependencies = []
+		entity_parts = entity_model_class.lstrip('\\').split('\\')
+		# Check if the entity belongs to the current module
+		if len(entity_parts) >= 3 and entity_parts[0] == self._module.package and entity_parts[1] == self._module.name:
+			# Assume the entity patch follows the standard naming convention from eaventity.py
+			entity_name = entity_parts[-1]
+			dependencies.append('\\{}\\{}\\Setup\\Patch\\Data\\Default{}Entity::class'.format(
+				self._module.package,
+				self._module.name,
+				entity_name
+			))
+
+		dependency_body = "return [\n" + ",\n".join(dependencies) + "\n];"
+
 		install_patch.add_method(Phpmethod(
 			'getDependencies',
 			access='public static',
 			return_type='array',
-			body="return [\n\n];",
+			body=dependency_body,
 			docstring=[
 				'{@inheritdoc}',
 				'@return array'
