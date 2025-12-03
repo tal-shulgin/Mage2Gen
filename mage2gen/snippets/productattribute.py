@@ -282,6 +282,43 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 				'@return array'
 			]
 		))
+
+		source_model.add_method(Phpmethod(
+			'getOptionText',
+			params=['$value'],
+			body="""
+		$isMultiple = false;
+        if (strpos($value, ',') !== false) {
+            $isMultiple = true;
+            $value = explode(',', $value);
+        }
+
+        if ($isMultiple) {
+            $values = [];
+            foreach ($this->getAllOptions() as $item) {
+                if (in_array($item['value'], $value)) {
+                    $values[] = $item['label'];
+                }
+            }
+            return $values;
+        }
+
+        foreach ($this->getAllOptions() as $item) {
+            if ($item['value'] == $value) {
+                return $item['label'];
+            }
+        }
+
+        return false;
+			""",
+			docstring=[
+				'Get a text for option value',
+				'',
+				'@param string|integer $value',
+				'@return string|bool|array'
+			]
+		))
+
 		if used_in_product_listing:
 			source_model.add_method(Phpmethod(
 				'getFlatColumns',
