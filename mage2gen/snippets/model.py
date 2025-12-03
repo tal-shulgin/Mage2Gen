@@ -88,7 +88,10 @@ class ModelSnippet(Snippet):
         extra_params = extra_params if extra_params else {}
 
         model_table = '{}_{}_{}'.format(self._module.package.lower(), self._module.name.lower(), model_name.lower())
+        
         model_id = '{}_id'.format(model_name.lower())
+        if extra_params.get('primary_key'):
+            model_id = extra_params.get('primary_key')
 
         field_element_type = 'input'
 
@@ -293,10 +296,10 @@ class ModelSnippet(Snippet):
 
         api_data_class.add_method(InterfaceMethod(
             'set' + field_name_capitalized,
-            params=['{} ${}'.format(php_type, lowerfirst(field_name_capitalized))],
+            params=['{} ${}'.format(php_type_hint, lowerfirst(field_name_capitalized))],
             docstring=[
                 'Set {}'.format(field_name),
-                '@param {} ${}'.format(php_type, lowerfirst(field_name_capitalized)),
+                '@param {} ${}'.format(php_type_hint, lowerfirst(field_name_capitalized)),
                 '@return \\{}'.format(api_data_class.class_namespace)
             ],
             return_type='\{}'.format(api_data_class.class_namespace)
@@ -358,7 +361,7 @@ class ModelSnippet(Snippet):
         ))
 
         model_class.add_method(Phpmethod('set' + field_name_capitalized,
-            params=['{} ${}'.format(php_type, lowerfirst(field_name_capitalized))],
+            params=['{} ${}'.format(php_type_hint, lowerfirst(field_name_capitalized))],
             docstring=['@inheritDoc'],
             body="""return $this->setData({}, ${});
             """.format('self::' + field_name.upper(), lowerfirst(field_name_capitalized)),
@@ -1604,5 +1607,12 @@ class ModelSnippet(Snippet):
                 description='10',
                 regex_validator=r'^\d+$',
                 error_message='Only numeric value'
+            ),
+            SnippetParam(
+                name='primary_key',
+                description='Custom primary key name (default: model_id)',
+                required=False,
+                regex_validator=r'^[a-zA-Z]{1}\w+$',
+                error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character.',
             )
         ]
