@@ -34,3 +34,4 @@ from .customerdata import CustomerSectionDataSnippet
 from .router import RouterSnippet
 from .pagebuildercontenttype import PageBuilderContentTypeSnippet
 from .install import InstallSnippet
+from .mixin import MixinSnippet
