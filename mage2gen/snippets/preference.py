@@ -24,19 +24,22 @@ class PreferenceSnippet(Snippet):
 
 	description = """Create the old school Magento 1 Rewrite, but it is not recommended."""
 
-	def add(self, classname, extra_params=None):
+	def add(self, classname, preference=None, extra_params=None):
 		# Add class
-		preference_classname = 'Rewrite\\{}'.format(classname)
-		preference_class = Phpclass(preference_classname, "\\{}".format(classname))
-		
-		# Add plug first will add the module namespace to PhpClass
-		self.add_class(preference_class)
+		if not preference:
+			preference_classname = 'Rewrite\\{}'.format(classname)
+			preference_class = Phpclass(preference_classname, "\\{}".format(classname))
+			# Add plug first will add the module namespace to PhpClass
+			self.add_class(preference_class)
+			type_name = preference_class.class_namespace
+		else:
+			type_name = preference
 
 		# Plugin XML
 		config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[
 			Xmlnode('preference', attributes={
 				'for': classname,
-				'type': preference_class.class_namespace
+				'type': type_name
 			})
 		])
 
@@ -60,6 +63,10 @@ class PreferenceSnippet(Snippet):
 		return [
 			SnippetParam(name='classname', required=True,
 				description='Example: Magento\Sales\Model\Order',
+				regex_validator=r'^[\w\\]+$',
+				error_message='Only alphanumeric, underscore and backslash characters are allowed'),
+			SnippetParam(name='preference', required=False,
+				description='Optional: MyVendor\MyModule\Model\NewOrder',
 				regex_validator=r'^[\w\\]+$',
 				error_message='Only alphanumeric, underscore and backslash characters are allowed'),
 		]
