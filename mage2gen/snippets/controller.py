@@ -70,7 +70,10 @@ class ControllerSnippet(Snippet):
 		if adminhtml:
 			controller_class.append('Adminhtml')
 		controller_class.append(section)
-		controller_class.append(action)
+		
+		# Handle underscores in action for sub-namespaces
+		action_parts = action.split('_')
+		controller_class.extend([part.capitalize() for part in action_parts])
 
 		controller = Phpclass('\\'.join(controller_class), implements=[action_interface], attributes=[
 			"/**\n\t * @var PageFactory\n\t */\n\tprotected $resultPageFactory;"
@@ -172,12 +175,15 @@ return $this->http->setBody(
 		if ajax: 
 			return
 		else:
+		if ajax: 
+			return
+		else:
 			# create block
 			block_class = ['Block']
 			if adminhtml:
 				block_class.append('Adminhtml')
 			block_class.append(section)
-			block_class.append(action)
+			block_class.extend([part.capitalize() for part in action_parts])
 
 			block_extend = '\Magento\Backend\Block\Template' if adminhtml else '\Magento\Framework\View\Element\Template'
 			block = Phpclass('\\'.join(block_class), block_extend)
@@ -200,14 +206,21 @@ return $this->http->setBody(
 
 			self.add_class(block)
 
+			# Template path handling
+			template_path_parts = [section]
+			template_path_parts.extend([part.lower() for part in action_parts])
+			template_file_name = template_path_parts.pop() + '.phtml'
+			template_dir = '/'.join(template_path_parts)
+			template_full_path = "{}/{}".format(template_dir, template_file_name)
+
 			# Add layout xml
 			layout_xml = Xmlnode('page', attributes={'layout':"admin-1column" if adminhtml else "1column", 'xsi:noNamespaceSchemaLocation':"urn:magento:framework:View/Layout/etc/page_configuration.xsd"}, nodes=[
 				Xmlnode('body', nodes=[
 					Xmlnode('referenceContainer', attributes={'name': 'content'}, nodes=[
 						Xmlnode('block', attributes={
-							'name': "{}.{}".format(section, action), 
+							'name': "{}.{}".format(section, action.replace('_', '.')), 
 							'class': block.class_namespace,
-							'template': "{}::{}/{}.phtml".format(self.module_name, section, action)
+							'template': "{}::{}".format(self.module_name, template_full_path)
 						})
 					])
 				])
@@ -217,7 +230,7 @@ return $this->http->setBody(
 
 			# add template file
 			path = os.path.join('view', 'adminhtml' if adminhtml else 'frontend', 'templates')
-			self.add_static_file(path, StaticFile("{}/{}.phtml".format(section, action),body="Hello {}/{}.phtml".format(section, action)))
+			self.add_static_file(path, StaticFile(template_full_path,body="Hello {}".format(template_full_path)))
 
 			if adminhtml:
 				# create menu.xml
