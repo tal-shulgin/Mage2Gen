@@ -878,7 +878,7 @@ class ModelSnippet(Snippet):
         # link controller
         link_controller = Phpclass('Controller\\Adminhtml\\' + model_name.replace('_', ''), extends='\\Magento\\Backend\\App\\Action', abstract=True,
             attributes=[
-                "const ADMIN_RESOURCE = '{}::top_level';".format(self.module_name),
+                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), model_name),
                 'protected $_coreRegistry;'])
         link_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context', '\\Magento\\Framework\\Registry $coreRegistry'],
@@ -1032,22 +1032,27 @@ class ModelSnippet(Snippet):
                     $error = false;
                     $messages = [];
 
-                    if ($this->getRequest()->getParam('isAjax')) {{
-                        $postItems = $this->getRequest()->getParam('items', []);
-                        if (!count($postItems)) {{
-                            $messages[] = __('Please correct the data sent.');
-                            $error = true;
-                        }} else {{
-                            foreach (array_keys($postItems) as $modelid) {{
-                                /** @var \{model_class} $model */
-                                $model = $this->_objectManager->create(\{model_class}::class)->load($modelid);
-                                try {{
-                                    $model->setData(array_merge($model->getData(), $postItems[$modelid]));
-                                    $model->save();
-                                }} catch (\Exception $e) {{
-                                    $messages[] = "[{model_name} ID: {{$modelid}}]  {{$e->getMessage()}}";
-                                    $error = true;
-                                }}
+                    if (!$this->getRequest()->getParam('isAjax')) {{
+                        return $resultJson->setData([
+                            'messages' => [__('Please correct the data sent.')],
+                            'error' => true
+                        ]);
+                    }}
+
+                    $postItems = $this->getRequest()->getParam('items', []);
+                    if (!count($postItems)) {{
+                        $messages[] = __('Please correct the data sent.');
+                        $error = true;
+                    }} else {{
+                        foreach (array_keys($postItems) as $modelid) {{
+                            /** @var \{model_class} $model */
+                            $model = $this->_objectManager->create(\{model_class}::class)->load($modelid);
+                            try {{
+                                $model->setData(array_merge($model->getData(), $postItems[$modelid]));
+                                $model->save();
+                            }} catch (\Exception $e) {{
+                                $messages[] = "[{model_name} ID: {{$modelid}}]  {{$e->getMessage()}}";
+                                $error = true;
                             }}
                         }}
                     }}
@@ -1059,6 +1064,7 @@ class ModelSnippet(Snippet):
                         model_class = model_class.class_namespace,
                         model_name = model_name.replace('_', ' ').title(),
                     ),
+            return_type='\\Magento\\Framework\\Controller\\ResultInterface',
             docstring=[
                 'Inline edit action',
                 '',

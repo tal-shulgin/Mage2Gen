@@ -86,6 +86,7 @@ class PaymentSnippet(Snippet):
 						Xmlnode('title',node_text=method_name),
 						Xmlnode('allowspecific',node_text='0'),
 						Xmlnode('group',node_text='offline'),
+						Xmlnode('payment_action',node_text='authorize_capture'),
 					])
 				])
 			])
@@ -125,6 +126,10 @@ class PaymentSnippet(Snippet):
 							]),
 							Xmlnode('field', attributes={'id':'instructions','type':'textarea','sortOrder':70,'showInWebsite':1,'showInStore':1,'showInDefault':1,'translate':'label'},match_attributes={'id'},nodes=[
 								Xmlnode('label',node_text='Instructions'),
+							]),
+							Xmlnode('field', attributes={'id':'payment_action','type':'select','sortOrder':80,'showInWebsite':1,'showInStore':1,'showInDefault':1,'translate':'label'},match_attributes={'id'},nodes=[
+								Xmlnode('label',node_text='Payment Action'),
+								Xmlnode('source_model',node_text='Magento\\Payment\\Model\\Source\\Invoice'),
 							]),
 						])	
 					])
