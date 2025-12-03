@@ -277,11 +277,7 @@ class ModelSnippet(Snippet):
             docstring=[
                 'Set {}'.format(model_id),
                 '@param int ${}'.format(model_id_capitalized_after),
-                '@return \\{}\\{}\\{}'.format(
-                    self.module_name.replace('_', '\\'),
-                    model_name_capitalized,
-                    api_data_class.class_namespace
-                )
+                '@return \\{}'.format(api_data_class.class_namespace)
             ],
             return_type='\{}'.format(api_data_class.class_namespace)
         ))
@@ -301,11 +297,7 @@ class ModelSnippet(Snippet):
             docstring=[
                 'Set {}'.format(field_name),
                 '@param {} ${}'.format(php_type, lowerfirst(field_name_capitalized)),
-                '@return \\{}\\{}\\{}'.format(
-                    self.module_name.replace('_', '\\'),
-                    model_name_capitalized,
-                    api_data_class.class_namespace
-                )
+                '@return \\{}'.format(api_data_class.class_namespace)
             ],
             return_type='\{}'.format(api_data_class.class_namespace)
         ))
@@ -1580,7 +1572,7 @@ class ModelSnippet(Snippet):
                 required=False,
                 regex_validator= r'^\d+$',
                 error_message='Only numeric value allowed.',
-                depend={'field_type': r'text|blob|decimal|numeric'}
+                depend={'field_type': r'text|blob|decimal|numeric|varchar'}
             ),
             SnippetParam(
                 name='precision',
