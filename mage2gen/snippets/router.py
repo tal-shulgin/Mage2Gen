@@ -105,8 +105,8 @@ class RouterSnippet(Snippet):
 	def params(cls):
 		return [
 			SnippetParam(name='routername', required=False, description='On empty uses module name in lower case',
-				regex_validator= r'^[a-z]{1}\w+$',
-				error_message='Only lowercase alphanumeric and underscore characters are allowed, and need to start with a alphabetic character.',
+				regex_validator= r'^[a-z]{1}\w{2,}$',
+				error_message='Only lowercase alphanumeric and underscore characters are allowed, and need to start with a alphabetic character. Minimum length is 3.',
 				repeat=True),
 			SnippetParam(name='adminhtml', yes_no=True),
 		]
