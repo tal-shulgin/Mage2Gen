@@ -37,3 +37,4 @@ from .install import InstallSnippet
 from .mixin import MixinSnippet
 from .logger import LoggerSnippet
 from .messagequeue import MessageQueueSnippet
+from .less import LessSnippet
