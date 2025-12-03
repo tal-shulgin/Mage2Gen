@@ -456,8 +456,8 @@ class SystemSnippet(Snippet):
 				name='group', 
 				required=True, 
 				description='Example: options',
-				regex_validator= r'^[a-z]{1}[a-z0-9_]+$',
-				error_message='Only lowercase alphanumeric and underscore characters are allowed, and need to start with a alphabetic character.',
+				regex_validator= r'^(?!config$)[a-z]{1}[a-z0-9_]+$',
+				error_message='Only lowercase alphanumeric and underscore characters are allowed. "config" is not allowed as a group id.',
 				repeat=True),
 			SnippetParam(
 				name='field', 
