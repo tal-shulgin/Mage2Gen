@@ -139,7 +139,9 @@ class CompanyAttributeSnippet(Snippet):
 						construct=True
 		)
 		self.add_plugin('Magento\\Company\\Api\\CompanyRepositoryInterface', 'save',
-						"$company->setData('{attribute_code}', $extensionAttributes->get{transformed_attribute_code}());".format(
+						"""if ($extensionAttributes->get{transformed_attribute_code}() !== null) {{
+            $company->setData('{attribute_code}', $extensionAttributes->get{transformed_attribute_code}());
+        }}""".format(
 							attribute_code=attribute_code, transformed_attribute_code=transformed_attribute_code),
 						body_return="$company->save();\n\t\treturn $company;",
 						body_start="""
