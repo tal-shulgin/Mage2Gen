@@ -1072,7 +1072,7 @@ class EavEntitySnippet(Snippet):
         # link controller
         link_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', ''), extends='\\Magento\\Backend\\App\\Action', abstract=True,
             attributes=[
-                "const ADMIN_RESOURCE = '{}::top_level';".format(self.module_name),
+                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), entity_name),
                 'protected $_coreRegistry;'])
         link_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context', '\\Magento\\Framework\\Registry $coreRegistry'],
