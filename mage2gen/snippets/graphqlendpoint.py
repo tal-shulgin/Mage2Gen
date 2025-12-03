@@ -88,12 +88,13 @@ return $ids;""".format(object_id=object_id),
             if base_type == 'Mutation':
                 # Enforce strict input object for mutations
                 item_args_str = 'input: {}!'.format(input_type_name)
-                item_input_def = input_type_name
+                item_input_def = input_type_name + '!'
 
             base_object_type.add_objectitem(
                 GraphQlObjectItem(
                     identifier,
                     item_arguments=item_args_str,
+                    item_input=item_input_def,
                     item_type=return_type_name,
                     item_resolver=resolver_graphqlformat,
                     item_cache_identity=cache_identity_graphqlformat,
