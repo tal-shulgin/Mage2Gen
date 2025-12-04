@@ -62,11 +62,11 @@ class PreferenceSnippet(Snippet):
 	def params(cls):
 		return [
 			SnippetParam(name='classname', required=True,
-				description='Example: Magento\Sales\Model\Order',
+				description='Example: Magento\\Sales\\Model\\Order',
 				regex_validator=r'^[\w\\]+$',
 				error_message='Only alphanumeric, underscore and backslash characters are allowed'),
 			SnippetParam(name='preference', required=False,
-				description='Optional: MyVendor\MyModule\Model\NewOrder',
+				description='Optional: MyVendor\\MyModule\\Model\\NewOrder',
 				regex_validator=r'^[\w\\]+$',
 				error_message='Only alphanumeric, underscore and backslash characters are allowed'),
 		]

@@ -175,9 +175,6 @@ return $this->http->setBody(
 		if ajax: 
 			return
 		else:
-		if ajax: 
-			return
-		else:
 			# create block
 			block_class = ['Block']
 			if adminhtml:
