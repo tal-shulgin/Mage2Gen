@@ -766,9 +766,10 @@ class ModelSnippet(Snippet):
                 columns_xml
             ]))
 
-    def add_adminhtml_form(self, model_name, field_name, model_table, model_id, collection_model_class, model_class, required, field_element_type, extra_params, api_repository_class, model_name_capitalized):
+def add_adminhtml_form(self, model_name, field_name, model_table, model_id, collection_model_class, model_class, required, field_element_type, extra_params, api_repository_class, model_name_capitalized):
         frontname = self.module_name.lower()
         repo_interface = "\\{}\\{}\\Api\\{}RepositoryInterface".format(self._module.package, self._module.name, model_name_capitalized)
+        model_factory_class = model_class.class_namespace + 'Factory'
         
         # Add block buttons
         # Back button
@@ -851,7 +852,7 @@ class ModelSnippet(Snippet):
             ))
         self.add_class(generic_button)
 
-        # Save and continu button
+        # Save and continue button
         save_continue_button = Phpclass('Block\\Adminhtml\\' + model_name.replace('_', '\\') + '\\Edit\\SaveAndContinueButton', implements=['ButtonProviderInterface'],
             extends='GenericButton',
             dependencies=['Magento\\Framework\\View\\Element\\UiComponent\\Control\\ButtonProviderInterface'])
@@ -915,6 +916,7 @@ class ModelSnippet(Snippet):
                     namespace = self._module.package,
                     model_name = model_name.replace('_', ' ').title()
                 ),
+            return_type='\\Magento\\Backend\\Model\\View\\Result\\Page',
             docstring=[
                 'Init page',
                 '',
@@ -923,7 +925,7 @@ class ModelSnippet(Snippet):
             ]))
         self.add_class(link_controller)
 
-        # Delete controller
+        # Delete controller (REFACTORED)
         delete_controller = Phpclass(
             'Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Delete', 
             extends='\\' + link_controller.class_namespace,
@@ -969,6 +971,7 @@ parent::__construct($context, $coreRegistry);""",
                     return $resultRedirect->setPath('*/*/');""".format(
                         model_id = model_id,
                         model_name = model_name.replace('_', ' ').title()),
+            return_type='\\Magento\\Framework\\Controller\\ResultInterface',
             docstring=[
                 'Delete action',
                 '',
@@ -977,33 +980,41 @@ parent::__construct($context, $coreRegistry);""",
         ))
         self.add_class(delete_controller)
 
-        # Edit controller
-        edit_controller = Phpclass('Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Edit', extends= '\\' + link_controller.class_namespace,
+        # Edit controller (REFACTORED)
+        edit_controller = Phpclass(
+            'Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Edit', 
+            extends= '\\' + link_controller.class_namespace,
             attributes=[
                 'protected $resultPageFactory;',
-                'private $repository;'
+                'private $repository;',
+                'private $modelFactory;'
             ],
             dependencies=[
                 'Magento\\Framework\\Exception\\NoSuchEntityException',
-                repo_interface
+                repo_interface,
+                model_factory_class
             ])
         edit_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
                 '\\Magento\\Framework\\Registry $coreRegistry',
-                '\\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory',
-                '{}RepositoryInterface $repository'.format(model_name_capitalized)],
+                'protected \\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory',
+                '{}RepositoryInterface $repository'.format(model_name_capitalized),
+                '{}Factory $modelFactory'.format(model_name_capitalized)],
             body="""$this->resultPageFactory = $resultPageFactory;
         $this->repository = $repository;
+        $this->modelFactory = $modelFactory;
         parent::__construct($context, $coreRegistry);""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\Registry $coreRegistry',
                 '@param \\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory',
                 '@param {}RepositoryInterface $repository'.format(model_name_capitalized),
+                '@param {}Factory $modelFactory'.format(model_name_capitalized)
             ]))
         edit_controller.add_method(Phpmethod('execute',
             body="""// 1. Get ID and create model
                 $id = $this->getRequest()->getParam('{model_id}');
+                $model = $this->modelFactory->create();
                 
                 // 2. Initial checking
                 if ($id) {{
@@ -1017,13 +1028,6 @@ parent::__construct($context, $coreRegistry);""",
                     }}
                 }}
                 
-                // We still create a new model for the registry to ensure compatibility with UI components that expect a full model.
-                // The repository get() returns a data interface which might not be sufficient for all UI components.
-                $model = $this->_objectManager->create(\{model_class}::class);
-                if ($id) {{
-                    $model->load($id);
-                }}
-
                 $this->_coreRegistry->register('{register_model}', $model);
 
                 // 3. Build edit form
@@ -1037,10 +1041,10 @@ parent::__construct($context, $coreRegistry);""",
                 $resultPage->getConfig()->getTitle()->prepend($model->getId() ? __('Edit {model_name} %1', $model->getId()) : __('New {model_name}'));
                 return $resultPage;""".format(
                         model_id = model_id,
-                        model_class = model_class.class_namespace,
                         model_name = model_name.replace('_', ' ').title(),
                         register_model = register_model
                     ),
+            return_type='\\Magento\\Framework\\Controller\\ResultInterface',
             docstring=[
                 'Edit action',
                 '',
@@ -1048,19 +1052,27 @@ parent::__construct($context, $coreRegistry);""",
             ]))
         self.add_class(edit_controller)
 
-        # Inline Controller
+        # Inline Controller (REFACTORED)
         inline_edit_controller = Phpclass('Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\InlineEdit', extends='\\Magento\\Backend\\App\\Action',
             attributes=[
                 "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), model_name),
-                'protected $jsonFactory;'
+                'protected $jsonFactory;',
+                'private $repository;'
+            ],
+            dependencies=[
+                repo_interface
             ])
         inline_edit_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
-                '\\Magento\\Framework\\Controller\\Result\\JsonFactory $jsonFactory'],
-            body="""parent::__construct($context);\n$this->jsonFactory = $jsonFactory;""",
+                '\\Magento\\Framework\\Controller\\Result\\JsonFactory $jsonFactory',
+                '{}RepositoryInterface $repository'.format(model_name_capitalized)],
+            body="""parent::__construct($context);
+$this->jsonFactory = $jsonFactory;
+$this->repository = $repository;""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\Controller\\Result\\JsonFactory $jsonFactory',
+                '@param {}RepositoryInterface $repository'.format(model_name_capitalized)
             ]))
         inline_edit_controller.add_method(Phpmethod('execute',
             body="""/** @var \Magento\Framework\Controller\Result\Json $resultJson */
@@ -1081,11 +1093,11 @@ parent::__construct($context, $coreRegistry);""",
                         $error = true;
                     }} else {{
                         foreach (array_keys($postItems) as $modelid) {{
-                            /** @var \{model_class} $model */
-                            $model = $this->_objectManager->create(\{model_class}::class)->load($modelid);
                             try {{
+                                /** @var \{model_class} $model */
+                                $model = $this->repository->get($modelid);
                                 $model->setData(array_merge($model->getData(), $postItems[$modelid]));
-                                $model->save();
+                                $this->repository->save($model);
                             }} catch (\Exception $e) {{
                                 $messages[] = "[{model_name} ID: {{$modelid}}]  {{$e->getMessage()}}";
                                 $error = true;
@@ -1131,16 +1143,17 @@ parent::__construct($context, $coreRegistry);""",
                 'New action',
                 '',
                 '@return \Magento\Framework\Controller\ResultInterface',
-            ]))
+            ],
+            return_type='\\Magento\\Framework\\Controller\\ResultInterface'))
         self.add_class(new_controller)
 
-        # Save Controller
+        # Save Controller (REFACTORED)
         save_controller = Phpclass(
             'Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Save',
             dependencies=[
                 'Magento\\Framework\\Exception\\LocalizedException',
                 repo_interface,
-                model_class.class_namespace + 'Factory'
+                model_factory_class
             ],
             extends='\\Magento\\Backend\\App\\Action',
             attributes=[
@@ -1458,6 +1471,40 @@ parent::__construct($context);""",
                             Xmlnode('validation', nodes=[
                                 Xmlnode('rule', attributes={'name': 'required-entry', 'xsi:type': 'boolean'},
                                         node_text='true' if required else 'false'),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+                Xmlnode('actionsColumn', attributes={'name': 'actions', 'class': actions.class_namespace}, nodes=[
+                    Xmlnode('settings', nodes=[
+                        Xmlnode('indexField', node_text=model_id),
+                        Xmlnode('resizeEnabled', node_text='false'),
+                        Xmlnode('resizeDefaultWidth', node_text='107'),
+                    ]),
+                ]),
+            ]),
+        ])
+
+        self.add_xml('view/adminhtml/ui_component/{}_listing.xml'.format(model_table), ui_listing)
+
+        # Update UI Component Listing
+        ui_listing = Xmlnode('listing', attributes={'xsi:noNamespaceSchemaLocation': "urn:magento:module:Magento_Ui:etc/ui_configuration.xsd"}, nodes=[
+            Xmlnode('settings', nodes=[
+                Xmlnode('buttons', nodes=[
+                    Xmlnode('button', attributes={'name': 'add'}, nodes=[
+                        Xmlnode('url', attributes={'path':'*/*/new'}),
+                        Xmlnode('class', node_text='primary'),
+                        Xmlnode('label', attributes={'translate': 'true'}, node_text='Add new {}'.format(model_name)),
+                    ]),
+                ]),
+            ]),
+            Xmlnode('columns', attributes={'name': '{}_columns'.format(model_table)}, nodes=[
+                Xmlnode('column', attributes={'name': field_name}, nodes=[
+                    Xmlnode('settings', nodes=[
+                        Xmlnode('editor',  nodes=[
+                            Xmlnode('editorType', node_text=field_element_type if field_element_type == 'date' else 'text'),
+                            Xmlnode('validation', nodes=[
+                                Xmlnode('rule', attributes={'name': 'required-entry', 'xsi:type': 'boolean'}, node_text='true' if required else 'false'),
                             ]),
                         ]),
                     ]),

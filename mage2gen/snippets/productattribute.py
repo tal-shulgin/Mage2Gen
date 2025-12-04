@@ -73,23 +73,23 @@ class ProductAttributeSnippet(Snippet):
 		except:
 			apply_to = ''
 
-		value_type = self.FRONTEND_INPUT_VALUE_TYPE.get(frontend_input,'int')
+		value_type = self.FRONTEND_INPUT_VALUE_TYPE.get(frontend_input, 'int')
 		value_type = value_type if value_type != 'date' else 'datetime'
 		user_defined = 'true'
-		
+
 		# FIX #352: Only generate options array if inputs need it
-        options_php_array_string = "[]" # Changed from "''" to "[]"
-        if options:
-            options_list = options.split(',')
-            options_php_array = '"'+'","'.join(x.strip() for x in options_list) + '"'
-            options_php_array_string = "['values' => ["+options_php_array+"]]" # Modern PHP syntax
-        elif frontend_input in ['select', 'multiselect']:
-            # Default empty options only for select types
-            options_php_array_string = "['values' => ['']]"
+		options_php_array_string = "[]"
+		if options:
+			options_list = options.split(',')
+			options_php_array = '"' + '","'.join(x.strip() for x in options_list) + '"'
+			options_php_array_string = "['values' => [" + options_php_array + "]]"
+		elif frontend_input in ['select', 'multiselect']:
+			# Default empty options only for select types
+			options_php_array_string = "['values' => ['']]"
 
 		attribute_code = extra_params.get('attribute_code', None)
 		if not attribute_code:
-			attribute_code = attribute_label.lower().replace(' ','_')[:60]
+			attribute_code = attribute_label.lower().replace(' ', '_')[:60]
 
 		split_attribute_code = attribute_code.split('_')
 		attribute_code_capitalized = ''.join(upperfirst(item) for item in split_attribute_code)

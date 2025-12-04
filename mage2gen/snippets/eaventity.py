@@ -499,7 +499,7 @@ class EavEntitySnippet(Snippet):
         collection_entity_class = Phpclass(
             'Model\\ResourceModel\\' + entity_name_capitalized.replace('_', '\\') + '\\Collection',
             extends='\\Magento\\Eav\\Model\\Entity\\Collection\\AbstractCollection',
-            # FIXED: Added _idFieldName for Mass Action Support
+            # FIXED: Added _idFieldName for Mass Action Support (Task 2)
             attributes=[
                 "/**\n\t * @inheritDoc\n\t */\n\tprotected $_idFieldName = '{}';".format(entity_id),
             ]
@@ -948,6 +948,7 @@ class EavEntitySnippet(Snippet):
     def add_adminhtml_form(self, entity_name, field_name, entity_table, entity_id, collection_entity_class, entity_class, required, field_element_type, api_repository_class, entity_name_capitalized):
         frontname = self.module_name.lower()
         repo_interface = "\\{}\\{}\\Api\\{}RepositoryInterface".format(self._module.package, self._module.name, entity_name_capitalized)
+        model_factory_class = entity_class.class_namespace + 'Factory'
 
         # Add block buttons
         # Back button
@@ -1107,7 +1108,7 @@ class EavEntitySnippet(Snippet):
             ]))
         self.add_class(link_controller)
 
-        # Delete controller
+        # Delete controller (Refactored to use Repository)
         delete_controller = Phpclass(
             'Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Delete', 
             extends='\\' + link_controller.class_namespace,
@@ -1163,33 +1164,41 @@ parent::__construct($context, $coreRegistry);""",
                     ))
         self.add_class(delete_controller)
 
-        # Edit controller
-        edit_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Edit', extends= '\\' + link_controller.class_namespace,
+        # Edit controller (Refactored to use Repository)
+        edit_controller = Phpclass(
+            'Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Edit', 
+            extends= '\\' + link_controller.class_namespace,
             attributes=[
                 'protected $resultPageFactory;',
-                'private $repository;'
+                'private $repository;',
+                'private $modelFactory;'
             ],
             dependencies=[
                 'Magento\\Framework\\Exception\\NoSuchEntityException',
-                repo_interface
+                repo_interface,
+                model_factory_class
             ])
         edit_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
                 '\\Magento\\Framework\\Registry $coreRegistry',
                 'protected \\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory',
-                '{}RepositoryInterface $repository'.format(entity_name_capitalized)],
+                '{}RepositoryInterface $repository'.format(entity_name_capitalized),
+                '{}Factory $modelFactory'.format(entity_name_capitalized)],
             body="""$this->resultPageFactory = $resultPageFactory;
         $this->repository = $repository;
+        $this->modelFactory = $modelFactory;
         parent::__construct($context, $coreRegistry);""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\Registry $coreRegistry',
                 '@param \\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory',
-                '@param {}RepositoryInterface $repository'.format(entity_name_capitalized)
+                '@param {}RepositoryInterface $repository'.format(entity_name_capitalized),
+                '@param {}Factory $modelFactory'.format(entity_name_capitalized)
             ]))
         edit_controller.add_method(Phpmethod('execute',
             body="""// 1. Get ID and create model
                 $id = $this->getRequest()->getParam('{entity_id}');
+                $model = $this->modelFactory->create();
                 
                 // 2. Initial checking
                 if ($id) {{
@@ -1201,13 +1210,6 @@ parent::__construct($context, $coreRegistry);""",
                         $resultRedirect = $this->resultRedirectFactory->create();
                         return $resultRedirect->setPath('*/*/');
                     }}
-                }}
-                
-                // Use ObjectManager to create new model for registry if ID is not present or just for registry compatibility
-                // Ideally we should use factory, but keeping consistent with other changes:
-                $model = $this->_objectManager->create(\{entity_class}::class);
-                if ($id) {{
-                    $model->load($id);
                 }}
 
                 $this->_coreRegistry->register('{register_model}', $model);
@@ -1235,18 +1237,26 @@ parent::__construct($context, $coreRegistry);""",
             ]))
         self.add_class(edit_controller)
 
-        # Inline Controller
+        # Inline Controller (Refactored to use Repository)
         inline_edit_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\InlineEdit', extends='\\Magento\\Backend\\App\\Action',
             attributes=[
-                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), entity_name)
-            ])
+                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), entity_name),
+                'protected $jsonFactory;',
+                'private $repository;'
+            ],
+            dependencies=[repo_interface]
+        )
         inline_edit_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
-                'protected \\Magento\\Framework\\Controller\\Result\\JsonFactory $jsonFactory'],
-            body="""parent::__construct($context);""",
+                'protected \\Magento\\Framework\\Controller\\Result\\JsonFactory $jsonFactory',
+                '{}RepositoryInterface $repository'.format(entity_name_capitalized)],
+            body="""parent::__construct($context);
+$this->jsonFactory = $jsonFactory;
+$this->repository = $repository;""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\Controller\\Result\\JsonFactory $jsonFactory',
+                '@param {}RepositoryInterface $repository'.format(entity_name_capitalized)
             ]))
         inline_edit_controller.add_method(Phpmethod('execute',
             body="""/** @var \Magento\Framework\Controller\Result\Json $resultJson */
@@ -1254,22 +1264,27 @@ parent::__construct($context, $coreRegistry);""",
                     $error = false;
                     $messages = [];
 
-                    if ($this->getRequest()->getParam('isAjax')) {{
-                        $postItems = $this->getRequest()->getParam('items', []);
-                        if (!count($postItems)) {{
-                            $messages[] = __('Please correct the data sent.');
-                            $error = true;
-                        }} else {{
-                            foreach (array_keys($postItems) as $modelid) {{
+                    if (!$this->getRequest()->getParam('isAjax')) {{
+                        return $resultJson->setData([
+                            'messages' => [__('Please correct the data sent.')],
+                            'error' => true
+                        ]);
+                    }}
+
+                    $postItems = $this->getRequest()->getParam('items', []);
+                    if (!count($postItems)) {{
+                        $messages[] = __('Please correct the data sent.');
+                        $error = true;
+                    }} else {{
+                        foreach (array_keys($postItems) as $modelid) {{
+                            try {{
                                 /** @var \{entity_class} $model */
-                                $model = $this->_objectManager->create(\{entity_class}::class)->load($modelid);
-                                try {{
-                                    $model->setData(array_merge($model->getData(), $postItems[$modelid]));
-                                    $model->save();
-                                }} catch (\Exception $e) {{
-                                    $messages[] = "[{entity_name} ID: {{$modelid}}]  {{$e->getMessage()}}";
-                                    $error = true;
-                                }}
+                                $model = $this->repository->get($modelid);
+                                $model->setData(array_merge($model->getData(), $postItems[$modelid]));
+                                $this->repository->save($model);
+                            }} catch (\Exception $e) {{
+                                $messages[] = "[{entity_name} ID: {{$modelid}}]  {{$e->getMessage()}}";
+                                $error = true;
                             }}
                         }}
                     }}
@@ -1290,12 +1305,15 @@ parent::__construct($context, $coreRegistry);""",
         self.add_class(inline_edit_controller)
 
         # new Controller
-        new_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\NewAction', extends='\\' + link_controller.class_namespace)
+        new_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\NewAction', extends='\\' + link_controller.class_namespace,
+            attributes=[
+                'protected $resultForwardFactory;'
+            ])
         new_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
                 '\\Magento\\Framework\\Registry $coreRegistry',
                 'protected \\Magento\\Backend\\Model\\View\\Result\\ForwardFactory $resultForwardFactory'],
-            body="""parent::__construct($context, $coreRegistry);""",
+            body="""$this->resultForwardFactory = $resultForwardFactory;\nparent::__construct($context, $coreRegistry);""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\Registry $coreRegistry',
@@ -1313,13 +1331,13 @@ parent::__construct($context, $coreRegistry);""",
             return_type='\\Magento\\Framework\\Controller\\ResultInterface'))
         self.add_class(new_controller)
 
-        # Save Controller
+        # Save Controller (Refactored to use Repository)
         save_controller = Phpclass(
             'Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Save',
             dependencies=[
                 'Magento\\Framework\\Exception\\LocalizedException',
                 repo_interface,
-                entity_class.class_namespace + 'Factory'
+                model_factory_class
             ],
             extends='\\Magento\\Backend\\App\\Action',
             attributes=[
