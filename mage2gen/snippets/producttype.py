@@ -134,8 +134,13 @@ class ProductTypeSnippet(Snippet):
         with open(templatePath, 'rb') as tmpl:
             template = tmpl.read().decode('utf-8')
 
+        # FIX: The original template expects {product_type_class_name}, but we should escape the backslash for PHP string class constant if used in ::class, 
+        # but here it is used as a constant value reference.
+        # Original: product_type_class_name="\{}".format(product_type_class_name)
+        # This results in \Vendor\Module\Model\...
+        
         methodBody = template.format(
-            product_type_class_name="\{}".format(product_type_class_name)
+            product_type_class_name="\\{}".format(product_type_class_name)
         )
 
         # Generate Data Patch instead of InstallData
@@ -173,13 +178,19 @@ class ProductTypeSnippet(Snippet):
             ]
         ))
 
+        # FIX: Explicit string concatenation
+        apply_body = (
+            '$this->moduleDataSetup->getConnection()->startSetup();\n'
+            '/** @var EavSetup $eavSetup */\n'
+            '$eavSetup = $this->eavSetupFactory->create([\'setup\' => $this->moduleDataSetup]);\n\n' +
+            methodBody + 
+            '\n\n$this->moduleDataSetup->getConnection()->endSetup();'
+        )
+
         install_patch.add_method(Phpmethod(
             'apply',
             return_type='void',
-            body='$this->moduleDataSetup->getConnection()->startSetup();\n'
-                 '$eavSetup = $this->eavSetupFactory->create([\'setup\' => $this->moduleDataSetup]);\n\n' +
-                 methodBody + 
-                 '\n\n$this->moduleDataSetup->getConnection()->endSetup();',
+            body=apply_body,
             docstring=['{@inheritdoc}']
         ))
         
@@ -215,15 +226,17 @@ class ProductTypeSnippet(Snippet):
                 name='product_type_code',
                 required=True,
                 description='Product Type Code',
-                regex_validator=r'^[a-zA-Z]{1}[a-zA-Z]+$',
-                error_message='Only alphanumeric are allowed, and need to start with a alphabetic character.'
+                # FIX: Allow underscores and numbers after first letter
+                regex_validator=r'^[a-zA-Z]{1}[a-zA-Z0-9_]+$',
+                error_message='Only alphanumeric and underscores are allowed, and must start with a letter.'
             ),
             SnippetParam(
                 name='product_type_label',
                 required=True,
                 description='Product Type Label',
-                regex_validator=r'^[a-zA-Z]{1}[a-zA-Z]+$',
-                error_message='Only alphanumeric are allowed, and need to start with a alphabetic character.'
+                # Label can have spaces, so we should probably allow that too, or just be less strict
+                regex_validator=r'^[a-zA-Z0-9\s_\-]+$',
+                error_message='Only alphanumeric, spaces, dashes and underscores are allowed.'
             ),
             SnippetParam(
                 name='extend_product_type',
