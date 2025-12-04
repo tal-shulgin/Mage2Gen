@@ -8,9 +8,10 @@ class MessageQueueSnippet(Snippet):
     snippet_label = 'Message Queue'
     description = """
     Create a Message Queue configuration with a Topic, Exchange, Queue, and Consumer.
+    Optionally generates a Publisher class wrapper for easy message dispatching.
     """
 
-    def add(self, topic, consumer, queue, exchange, handler_method='processMessage', schema_type='string', extra_params=None):
+    def add(self, topic, consumer, queue, exchange, handler_method='processMessage', schema_type='string', generate_publisher=False, extra_params=None):
         
         # 1. Create Consumer Class
         consumer_class_name = 'Model\\Consumer\\{}'.format(upperfirst(consumer))
@@ -32,7 +33,7 @@ class MessageQueueSnippet(Snippet):
         # Determine param type based on schema
         param_type = 'string'
         if schema_type != 'string':
-            # Assume it's a class interface
+            # Assume it's a class interface if not string
             param_type = '\\' + schema_type.lstrip('\\')
 
         consumer_class.add_method(Phpmethod(
@@ -50,6 +51,50 @@ class MessageQueueSnippet(Snippet):
         ))
         
         self.add_class(consumer_class)
+
+        # --- NEW: Publisher Generation ---
+        publisher_info = ""
+        if generate_publisher:
+            # Derive class name from topic: "my.topic.name" -> "MyTopicName"
+            topic_parts = topic.split('.')
+            topic_class_name = ''.join(part.capitalize() for part in topic_parts)
+            publisher_class_name = 'Model\\Publisher\\{}'.format(topic_class_name)
+
+            publisher_class = Phpclass(
+                publisher_class_name,
+                dependencies=['Magento\\Framework\\MessageQueue\\PublisherInterface']
+            )
+
+            publisher_class.attributes = [
+                "const TOPIC_NAME = '{}';".format(topic),
+                '/** @var PublisherInterface */',
+                'private $publisher;'
+            ]
+
+            publisher_class.add_method(Phpmethod(
+                '__construct',
+                params=['PublisherInterface $publisher'],
+                body='$this->publisher = $publisher;',
+                docstring=['@param PublisherInterface $publisher'],
+                access='public'
+            ))
+
+            publisher_class.add_method(Phpmethod(
+                'publish',
+                # Use the same type hint as the consumer for type safety
+                params=['{} $data'.format(param_type)], 
+                return_type='void',
+                body="$this->publisher->publish(self::TOPIC_NAME, $data);",
+                docstring=[
+                    'Publish message to topic',
+                    '',
+                    '@param {} $data'.format(param_type),
+                    '@return void'
+                ]
+            ))
+
+            self.add_class(publisher_class)
+            publisher_info = "\n\t- Publisher: {}".format(publisher_class_name)
 
         # 2. communication.xml
         comm_xml = Xmlnode('config', attributes={
@@ -101,7 +146,7 @@ class MessageQueueSnippet(Snippet):
         self.add_static_file(
             '.',
             Readme(
-                specifications=" - Message Queue\n\t- Topic: {}\n\t- Consumer: {}".format(topic, consumer),
+                specifications=" - Message Queue\n\t- Topic: {}\n\t- Consumer: {}{}".format(topic, consumer, publisher_info),
             )
         )
 
@@ -113,5 +158,6 @@ class MessageQueueSnippet(Snippet):
             SnippetParam('queue', required=True, description='Queue name', regex_validator=r'^[a-zA-Z0-9_]+$'),
             SnippetParam('exchange', required=True, description='Exchange name', regex_validator=r'^[a-zA-Z0-9_]+$'),
             SnippetParam('handler_method', required=True, default='processMessage', description='Method name in consumer class'),
-            SnippetParam('schema_type', required=True, default='string', description='Data interface class or simple type (string, bool, etc)')
+            SnippetParam('schema_type', required=True, default='string', description='Data interface class or simple type (string, bool, etc)'),
+            SnippetParam('generate_publisher', required=False, default=False, yes_no=True, description='Generate a Publisher class wrapper?')
         ]
