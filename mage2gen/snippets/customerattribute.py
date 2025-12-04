@@ -1,4 +1,3 @@
-
 # A Magento 2 module generator library
 # Copyright (C) 2016 Derrick Heesbeen
 #
@@ -61,9 +60,9 @@ class CustomerAttributeSnippet(Snippet):
 	]
 
 	SOURCE_MODELS = [
-		('Magento\Customer\Model\Customer\Attribute\Source\Group','Magento\Customer\Model\Customer\Attribute\Source\Group'),
-		('Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Country','Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Country'),
-		('Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Region','Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Region'),
+		(r'Magento\Customer\Model\Customer\Attribute\Source\Group',r'Magento\Customer\Model\Customer\Attribute\Source\Group'),
+		(r'Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Country',r'Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Country'),
+		(r'Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Region',r'Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Region'),
 		('','------------------'),
 		('custom','Create Your own')
 	]
@@ -86,11 +85,11 @@ class CustomerAttributeSnippet(Snippet):
 		if not attribute_code:
 			attribute_code = attribute_label.lower().replace(' ','_')[:60]
 		if frontend_input == 'select' and not source_model:
-			source_model = "Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Country"
+			source_model = r"Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Country"
 		elif frontend_input == 'multiselect':
-			backend_model = "Magento\Eav\Model\Entity\Attribute\Backend\ArrayBackend"
+			backend_model = r"Magento\Eav\Model\Entity\Attribute\Backend\ArrayBackend"
 			if not source_model:    
-				source_model = "Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Country"
+				source_model = r"Magento\Customer\Model\ResourceModel\Address\Attribute\Source\Country"
 		elif frontend_input != 'multiselect' and frontend_input != 'select':
 			source_model = ''
 			backend_model = ''
@@ -100,7 +99,7 @@ class CustomerAttributeSnippet(Snippet):
 			source_model_folder = 'Customer' if customer_entity =='customer' else 'Customer\\Address'
 			source_model_class = Phpclass(
 				'Model\\'+source_model_folder+'\\Attribute\\Source\\' + ''.join(n.capitalize() for n in attribute_code.split('_')),
-				extends='\Magento\Eav\Model\Entity\Attribute\Source\AbstractSource'	
+				extends=r'\Magento\Eav\Model\Entity\Attribute\Source\AbstractSource'	
 			)
 
 			if frontend_input == 'select':
@@ -222,7 +221,7 @@ class CustomerAttributeSnippet(Snippet):
 		install_patch.add_method(Phpmethod('apply',
 			body_start='$this->moduleDataSetup->getConnection()->startSetup();',
 			body_return='$this->moduleDataSetup->getConnection()->endSetup();',
-			body="""
+			body=r"""
 			/** @var CustomerSetup $customerSetup */
 			$customerSetup = $this->customerSetupFactory->create(['setup' => $this->moduleDataSetup]);
 			$customerEntity = $customerSetup->getEavConfig()->getEntityType({entity_type_alias}::ENTITY);
@@ -241,7 +240,7 @@ class CustomerAttributeSnippet(Snippet):
 			body_start='$this->moduleDataSetup->getConnection()->startSetup();',
 			body_return='$this->moduleDataSetup->getConnection()->endSetup();',
    			return_type='void',
-			body="""
+			body=r"""
 				/** @var CustomerSetup $customerSetup */
 				$customerSetup = $this->customerSetupFactory->create(['setup' => $this->moduleDataSetup]);
 				$customerSetup->removeAttribute(\Magento\Customer\Model\Customer::ENTITY, '{attribute_code}');""".format(
@@ -271,7 +270,7 @@ class CustomerAttributeSnippet(Snippet):
 
 		extension_attributes_file = 'etc/extension_attributes.xml'
 
-		api_class = "Magento\Customer\Api\Data\CustomerInterface"  if customer_entity=='customer' else 'Magento\Customer\Api\Data\AddressInterface'
+		api_class = r"Magento\Customer\Api\Data\CustomerInterface"  if customer_entity=='customer' else r'Magento\Customer\Api\Data\AddressInterface'
 	
 		extension_attributes_xml = Xmlnode('config',attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:Api/etc/extension_attributes.xsd"},nodes=[
 			Xmlnode('extension_attributes',attributes={'for':api_class},match_attributes={'for'},nodes=[
@@ -416,7 +415,7 @@ class CustomerAttributeSnippet(Snippet):
 		plugin.add_method(Phpmethod(
 			'beforeAssign',
 			body="""        $address->set{attribute_code_capitalized}($extAttributes->get{attribute_code_capitalized}());\n""".format(attribute_code_capitalized=attribute_code_capitalized),
-			body_return='	} catch (\Exception $e) {\n			}\n		}\n		return [$cartId, $address];',
+			body_return=r'	} catch (\Exception $e) {\n			}\n		}\n		return [$cartId, $address];',
 			body_start="""$extAttributes = $address->getExtensionAttributes();
         if (!empty($extAttributes)) {
             try {
@@ -496,7 +495,7 @@ class CustomerAttributeSnippet(Snippet):
                 name='source_model', 
                 choises=cls.SOURCE_MODELS,
                 depend= {'frontend_input': r'select|multiselect'}, 
-                default='Magento\Customer\Model\Customer\Attribute\Source\Group'),
+                default=r'Magento\Customer\Model\Customer\Attribute\Source\Group'),
              SnippetParam(
                 name='source_model_options',
                 required=True,

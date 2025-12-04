@@ -37,7 +37,7 @@ class WidgetSnippet(Snippet):
 		widget_block = Phpclass(
 			'\\'.join(['Block','Widget',name]),
 			implements=['BlockInterface'],
-			dependencies=['Magento\Framework\View\Element\Template','Magento\Widget\Block\BlockInterface'],
+			dependencies=[r'Magento\Framework\View\Element\Template',r'Magento\Widget\Block\BlockInterface'],
 			extends='Template',
 			attributes=['protected $_template = "widget/{}.phtml";'.format(name.lower())]
 		)

@@ -55,6 +55,65 @@ class SystemSnippet(Snippet):
 
 	.. code::
 
+		$this->_scopeConfig->getValue('yourmodulename/general/enabled', \\Magento\\Store\\Model\\ScopeInterface::SCOPE_STORE);
+
+	(Depends on \\Magento\\Framework\\App\\Config\\ScopeConfigInterface)
+	
+	More information:
+		
+	https://github.com/magento/magento2/blob/2.3-develop/lib/internal/Magento/Framework/App/Config/ScopeConfigInterface.php#L29
+	
+	
+	Retrieve config in GraphQl:
+	---------------------------
+	Query a store’s configuation
+	
+	The following call returns all details of a store’s configuration.
+	.. json::
+	
+		{
+			  storeConfig {
+					yourmodulename_general_enabled
+			  }
+		}
+	
+	More information
+	
+	https://devdocs.magento.com/guides/v2.3/graphql/reference/store-config.html#extend-configuration-data
+	
+	"	System config is used in Magento for storing settings to use in your module.
+
+	For example an option to enable and disable your module. 
+
+
+	Snippet Instructions:
+	---------------------
+	
+	1. Fill in the Tab (can be found in Magento Adminpanel > Stores > Settings > Configuration)
+	2. Check the box to add your config to an existing Tab
+	3. Fill in the Section
+	4. Fill in the Group
+	5. Fill in the Field
+	6. Select the Field type
+	7. Check the box to make your config available in the Graphql *StoreConfig* endpoint
+	
+	Available Field Types:
+	----------------------
+	- Text
+	- Textarea
+	- Select
+	- Multiselect
+	- Encrypted (Obscure)
+
+	For Select and Multiselect you will need to define a source model. By default this will be this will be the core Magento yes/no.
+	
+	
+	Retrieve config value:
+	----------------------
+	To retrieve the value you can use the xml path yourmodulename/general/enabled
+
+	.. code::
+
 		$this->_scopeConfig->getValue('yourmodulename/general/enabled', \Magento\Store\Model\ScopeInterface::SCOPE_STORE);
 
 	(Depends on \\\Magento\\\Framework\\\App\\\Config\\\ScopeConfigInterface)
@@ -135,7 +194,7 @@ class SystemSnippet(Snippet):
 
 			source_model_class = Phpclass(
 				'Model\\Config\\Source\\'+ ''.join(f.capitalize() for f in field_code.split('_')),
-				implements=['\Magento\Framework\Option\ArrayInterface']
+				implements=[r'\Magento\Framework\Option\ArrayInterface']
 			)
 			source_model_options = source_model_options.split(',')
 			to_option_array = "[{}]".format(','.join("['value' => '{0}', 'label' => __('{0}')]".format(o.strip()) for o in source_model_options))
@@ -243,12 +302,12 @@ class SystemSnippet(Snippet):
 				'Helper\\Mail',
 				extends='AbstractHelper',
 				dependencies=[
-					'Magento\Framework\App\Helper\AbstractHelper',
-					'Magento\Store\Model\ScopeInterface',
-					'Magento\Framework\Exception\LocalizedException',
-					'Magento\Framework\Mail\Template\TransportBuilder',
-					'Magento\Store\Model\StoreManagerInterface',
-					'Magento\Framework\App\Helper\Context'
+					r'Magento\Framework\App\Helper\AbstractHelper',
+					r'Magento\Store\Model\ScopeInterface',
+					r'Magento\Framework\Exception\LocalizedException',
+					r'Magento\Framework\Mail\Template\TransportBuilder',
+					r'Magento\Store\Model\StoreManagerInterface',
+					r'Magento\Framework\App\Helper\Context'
 				],
 				attributes=[]
 			)
@@ -263,9 +322,9 @@ class SystemSnippet(Snippet):
 					],
 					body="""""",
 					docstring=[
-						'@param \Magento\Framework\App\Helper\Context $context',
-						'@param \Magento\Framework\Mail\Template\TransportBuilder $transportBuilder'
-						'@param \Magento\Store\Model\StoreManagerInterface $storeManager'
+						r'@param \Magento\Framework\App\Helper\Context $context',
+						r'@param \Magento\Framework\Mail\Template\TransportBuilder $transportBuilder'
+						r'@param \Magento\Store\Model\StoreManagerInterface $storeManager'
 					]
 				)
 			)
@@ -289,11 +348,11 @@ class SystemSnippet(Snippet):
 						$storeId = $storeId ? $storeId : $this->storeManager->getStore()->getId();
 						$name = isset($to['name']) ? $to['name'] : '';
 						
-						/** @var \Magento\Framework\Mail\TransportInterface $transport */
+						/** @var \\Magento\\Framework\\Mail\\TransportInterface $transport */
 						$transport = $this->transportBuilder->setTemplateIdentifier(
 						    $this->scopeConfig->getValue($template, ScopeInterface::SCOPE_STORE, $storeId)
 						)->setTemplateOptions(
-						    ['area' => \Magento\Framework\App\Area::AREA_FRONTEND, 'store' => $storeId]
+						    ['area' => \\Magento\\Framework\\App\\Area::AREA_FRONTEND, 'store' => $storeId]
 						)->setTemplateVars(
 						    $templateParams
 						)->setScopeId(
@@ -305,6 +364,11 @@ class SystemSnippet(Snippet):
 						    $name
 						)->getTransport();
 						$transport->sendMessage();
+					    if (!isset($to['email']) || empty($to['email'])) {
+						    throw new LocalizedException(
+						        __('We could not send the email because the receiver data is invalid.')
+						    );
+						}
 					""",
 					docstring=[
 						'@param string $template configuration path of email template',
@@ -385,7 +449,7 @@ class SystemSnippet(Snippet):
 
 			graphql_di = Xmlnode('config', attributes={
 				'xsi:noNamespaceSchemaLocation': "urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[
-				Xmlnode('type', attributes={'name':'Magento\StoreGraphQl\Model\Resolver\Store\StoreConfigDataProvider'}, nodes=[
+				Xmlnode('type', attributes={'name':r'Magento\StoreGraphQl\Model\Resolver\Store\StoreConfigDataProvider'}, nodes=[
 					Xmlnode('arguments' ,nodes=[
 						Xmlnode('argument', attributes={'name':'extendedConfigData', 'xsi:type': 'array'}, nodes=[
 							Xmlnode('item', attributes={'name':object_field, 'xsi:type':'string'}, node_text='{}/{}/{}'.format(section, group, field))
@@ -473,7 +537,7 @@ class SystemSnippet(Snippet):
 				name='source_model', 
 				choises=cls.SOURCE_MODELS,
 				depend= {'field_type': r'select|multiselect'}, 
-				default='Magento\Config\Model\Config\Source\Yesno'),
+				default=r'Magento\Config\Model\Config\Source\Yesno'),
 			SnippetParam(
 				name='source_model_options',
 				required=True,

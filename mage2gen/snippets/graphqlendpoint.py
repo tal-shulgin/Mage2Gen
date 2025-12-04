@@ -36,19 +36,19 @@ class GraphQlEndpointSnippet(Snippet):
         item_identifier = upperfirst(identifier)
         
         resolver_classname = 'Model\\Resolver\\{}'.format(item_identifier)
-        resolver_graphqlformat = '{}\\\{}\\\{}'.format(self._module.package, self._module.name, resolver_classname)
+        resolver_graphqlformat = '{}\\\\{}\\\\{}'.format(self._module.package, self._module.name, resolver_classname)
 
         cache_identity_graphqlformat = ''
         if add_cache_identity and item_identifier and base_type == 'Query':
             object_id = object_fields.split(',')[0]
-            cache_identity_graphqlformat = '{}\\\{}\\\Model\\\Resolver\\\{}\\\\Identity'.format(self._module.package, self._module.name, item_identifier)
+            cache_identity_graphqlformat = '{}\\\\{}\\\\Model\\\\Resolver\\\\{}\\\\Identity'.format(self._module.package, self._module.name, item_identifier)
             
             # Create Identity Class
             cacheIdentity = Phpclass(
                 'Model\\Resolver\\{}\\Identity'.format(item_identifier),
                 implements=['IdentityInterface'],
                 dependencies=['Magento\\Framework\\GraphQl\\Query\\Resolver\\IdentityInterface'],
-                attributes=['private $cacheTag = \Magento\Framework\App\Config::CACHE_TAG;']
+                attributes=[r'private $cacheTag = \Magento\Framework\App\Config::CACHE_TAG;']
             )
             cacheIdentity.add_method(Phpmethod(
                 'getIdentities',
@@ -217,7 +217,7 @@ return $ids;""".format(object_id=object_id),
                 name='data_provider_dependency',
                 required=False,
                 depend={'base_type': 'Query'},
-                description='Example: Magento\Store\Api\StoreConfigManagerInterface',
+                description=r'Example: Magento\Store\Api\StoreConfigManagerInterface',
                 regex_validator=r'^[\w\\]+$',
                 error_message='Only alphanumeric, underscore and backslash characters are allowed'
             ),

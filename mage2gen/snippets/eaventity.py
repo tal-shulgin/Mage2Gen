@@ -315,13 +315,13 @@ class EavEntitySnippet(Snippet):
         api_data_class.add_method(InterfaceMethod('get'+entity_id_capitalized,docstring=['Get {}'.format(entity_id),'@return {}'.format('string|null')], return_type='?string'))
         self.add_class(api_data_class)
 
-        api_data_class.add_method(InterfaceMethod('set'+entity_id_capitalized,params=['${}'.format(entity_id_capitalized_after)],docstring=['Set {}'.format(entity_id),'@param string ${}'.format(entity_id_capitalized_after),'@return \{}'.format(api_data_class.class_namespace)], return_type='\{}'.format(api_data_class.class_namespace)))
+        api_data_class.add_method(InterfaceMethod('set'+entity_id_capitalized,params=['${}'.format(entity_id_capitalized_after)],docstring=['Set {}'.format(entity_id),'@param string ${}'.format(entity_id_capitalized_after),'@return \\{}'.format(api_data_class.class_namespace)], return_type='\\{}'.format(api_data_class.class_namespace)))
         self.add_class(api_data_class)
 
         api_data_class.add_method(InterfaceMethod('get'+field_name_capitalized,docstring=['Get {}'.format(field_name),'@return {}'.format('string|null')], return_type='?string'))
         self.add_class(api_data_class)
 
-        api_data_class.add_method(InterfaceMethod('set'+field_name_capitalized,params=['${}'.format(lowerfirst(field_name_capitalized))],docstring=['Set {}'.format(field_name),'@param string ${}'.format(lowerfirst(field_name_capitalized)),'@return \{}'.format(api_data_class.class_namespace)], return_type='\{}'.format(api_data_class.class_namespace)))
+        api_data_class.add_method(InterfaceMethod('set'+field_name_capitalized,params=['${}'.format(lowerfirst(field_name_capitalized))],docstring=['Set {}'.format(field_name),'@param string ${}'.format(lowerfirst(field_name_capitalized)),'@return \\{}'.format(api_data_class.class_namespace)], return_type='\\{}'.format(api_data_class.class_namespace)))
         self.add_class(api_data_class)
 
         api_data_class.add_method(InterfaceMethod('getExtensionAttributes', docstring=['Retrieve existing extension attributes object or create a new one.','@return ' + extension_interface_class_name + '|null'], return_type=extension_interface_class_name + '|null'))
@@ -330,17 +330,17 @@ class EavEntitySnippet(Snippet):
 
 
         # Create api data interface class
-        api_data_search_class =  InterfaceClass('Api\\Data\\' + entity_name_capitalized.replace('_', '\\') + 'SearchResultsInterface',extends='\Magento\Framework\Api\SearchResultsInterface')
-        api_data_search_class.add_method(InterfaceMethod('getItems',docstring=['Get {} list.'.format(entity_name),'@return \{}[]'.format(api_data_class.class_namespace)], return_type='\{}[]'.format(api_data_class.class_namespace)))
-        api_data_search_class.add_method(InterfaceMethod('setItems',params=['array $items'],docstring=['Set {} list.'.format(field_name),'@param \{}[] $items'.format(api_data_class.class_namespace),'@return $this'], return_type='self'))
+        api_data_search_class =  InterfaceClass('Api\\Data\\' + entity_name_capitalized.replace('_', '\\') + 'SearchResultsInterface',extends=r'\Magento\Framework\Api\SearchResultsInterface')
+        api_data_search_class.add_method(InterfaceMethod('getItems',docstring=['Get {} list.'.format(entity_name),'@return \\{}[]'.format(api_data_class.class_namespace)], return_type='\\{}[]'.format(api_data_class.class_namespace)))
+        api_data_search_class.add_method(InterfaceMethod('setItems',params=['array $items'],docstring=['Set {} list.'.format(field_name),'@param \\{}[] $items'.format(api_data_class.class_namespace),'@return $this'], return_type='self'))
         self.add_class(api_data_search_class)
 
         # Create api data interface class
-        api_repository_class =  InterfaceClass('Api\\' + entity_name_capitalized.replace('_', '\\') + 'RepositoryInterface',dependencies=['Magento\Framework\Api\SearchCriteriaInterface'])
-        api_repository_class.add_method(InterfaceMethod('save',params=['\{} ${}'.format(api_data_class.class_namespace,entity_name_capitalized_after)],docstring=['Save {}'.format(entity_name),'@param \{} ${}'.format(api_data_class.class_namespace,entity_name_capitalized_after),'@return \{}'.format(api_data_class.class_namespace),'@throws \Magento\Framework\Exception\LocalizedException'], return_type='\{}'.format(api_data_search_class.class_namespace)))
-        api_repository_class.add_method(InterfaceMethod('get',params=['${}'.format(entity_id_capitalized_after)],docstring=['Retrieve {}'.format(entity_name),'@param string ${}'.format(entity_id_capitalized_after),'@return \{}'.format(api_data_class.class_namespace),'@throws \Magento\Framework\Exception\LocalizedException'], return_type='\{}'.format(api_data_search_class.class_namespace)))
-        api_repository_class.add_method(InterfaceMethod('getList',params= ['\Magento\Framework\Api\SearchCriteriaInterface $searchCriteria'], docstring=['Retrieve {} matching the specified criteria.'.format(entity_name),'@param \Magento\Framework\Api\SearchCriteriaInterface $searchCriteria','@return \{}'.format(api_data_search_class.class_namespace),'@throws \Magento\Framework\Exception\LocalizedException'], return_type='\{}'.format(api_data_search_class.class_namespace)))
-        api_repository_class.add_method(InterfaceMethod('delete',params=['\{} ${}'.format(api_data_class.class_namespace,entity_name_capitalized_after)],docstring=['Delete {}'.format(entity_name),'@param \{} ${}'.format(api_data_class.class_namespace,entity_name_capitalized_after),'@return bool true on success','@throws \Magento\Framework\Exception\LocalizedException'], return_type='bool'))
+        api_repository_class =  InterfaceClass('Api\\' + entity_name_capitalized.replace('_', '\\') + 'RepositoryInterface',dependencies=[r'Magento\Framework\Api\SearchCriteriaInterface'])
+        api_repository_class.add_method(InterfaceMethod('save',params=['\\{} ${}'.format(api_data_class.class_namespace,entity_name_capitalized_after)],docstring=['Save {}'.format(entity_name),'@param \\{} ${}'.format(api_data_class.class_namespace,entity_name_capitalized_after),'@return \\{}'.format(api_data_class.class_namespace),r'@throws \Magento\Framework\Exception\LocalizedException'], return_type='\\{}'.format(api_data_search_class.class_namespace)))
+        api_repository_class.add_method(InterfaceMethod('get',params=['${}'.format(entity_id_capitalized_after)],docstring=['Retrieve {}'.format(entity_name),'@param string ${}'.format(entity_id_capitalized_after),'@return \\{}'.format(api_data_class.class_namespace),r'@throws \Magento\Framework\Exception\LocalizedException'], return_type='\\{}'.format(api_data_search_class.class_namespace)))
+        api_repository_class.add_method(InterfaceMethod('getList',params= [r'\Magento\Framework\Api\SearchCriteriaInterface $searchCriteria'], docstring=['Retrieve {} matching the specified criteria.'.format(entity_name),r'@param \Magento\Framework\Api\SearchCriteriaInterface $searchCriteria','@return \\{}'.format(api_data_search_class.class_namespace),r'@throws \Magento\Framework\Exception\LocalizedException'], return_type='\\{}'.format(api_data_search_class.class_namespace)))
+        api_repository_class.add_method(InterfaceMethod('delete',params=['\\{} ${}'.format(api_data_class.class_namespace,entity_name_capitalized_after)],docstring=['Delete {}'.format(entity_name),'@param \\{} ${}'.format(api_data_class.class_namespace,entity_name_capitalized_after),'@return bool true on success',r'@throws \Magento\Framework\Exception\LocalizedException'], return_type='bool'))
         api_repository_class.add_method(InterfaceMethod('deleteById',params=['${}'.format(entity_id_capitalized_after)],docstring=['Delete {} by ID'.format(entity_name),'@param string ${}'.format(entity_id_capitalized_after),'@return bool true on success','@throws \\Magento\\Framework\\Exception\\NoSuchEntityException','@throws \\Magento\\Framework\\Exception\\LocalizedException'], return_type='bool'))
         self.add_class(api_repository_class)
 
@@ -359,8 +359,8 @@ class EavEntitySnippet(Snippet):
             ])
         entity_class.add_method(Phpmethod('__construct', access=Phpmethod.PUBLIC,
             params=[
-                "\Magento\Framework\Model\Context $context",
-                "\Magento\Framework\Registry $registry",
+                r"\Magento\Framework\Model\Context $context",
+                r"\Magento\Framework\Registry $registry",
                 "protected DataObjectHelper $dataObjectHelper",
                 "\\" + resource_entity_class.class_namespace + " $resource",
                 collection_entity_class_name + " $resourceCollection",
@@ -369,8 +369,8 @@ class EavEntitySnippet(Snippet):
             body="""parent::__construct($context, $registry, $resource, $resourceCollection, $data);
             """.format(variable=entity_name.lower()),
             docstring=[
-                "@param \Magento\Framework\Model\Context $context",
-                "@param \Magento\Framework\Registry $registry",
+                r"@param \Magento\Framework\Model\Context $context",
+                r"@param \Magento\Framework\Registry $registry",
                 "@param {}InterfaceFactory ${}DataFactory".format(entity_name_capitalized, entity_name.lower()),
                 "@param DataObjectHelper $dataObjectHelper",
                 "@param \\" + resource_entity_class.class_namespace + " $resource",
@@ -406,7 +406,7 @@ class EavEntitySnippet(Snippet):
                                 )
 
         entity_setup.add_method(
-            Phpmethod('getDefaultEntities', return_type="array", body="""
+            Phpmethod('getDefaultEntities', return_type="array", body=r"""
                             return [\r
                                  \{entity_class}::ENTITY => [
                                     'entity_model' => \{resource_class}::class,
@@ -506,7 +506,10 @@ class EavEntitySnippet(Snippet):
         )
         collection_entity_class.add_method(Phpmethod('_construct',
             access=Phpmethod.PROTECTED,
-            body="$this->_init(\n    \{}::class,\n    \{}::class\n);".format(
+            body="""$this->_init(
+    \\{}::class,
+    \\{}::class
+);""".format(
                 entity_class.class_namespace ,resource_entity_class.class_namespace),
             docstring=[
                 'Define resource model',
@@ -568,7 +571,7 @@ class EavEntitySnippet(Snippet):
         ))
         entity_repository_class.add_method(Phpmethod('save', access=Phpmethod.PUBLIC,
             params=["{}Interface".format(entity_name_capitalized) + ' $' + entity_name_capitalized_after],
-            body="""/* if (empty(${variable}->getStoreId())) {{
+            body=r"""/* if (empty(${variable}->getStoreId())) {{
                         $storeId = $this->storeManager->getStore()->getId();
                         ${variable}->setStoreId($storeId);
                     }} */
@@ -607,7 +610,7 @@ class EavEntitySnippet(Snippet):
             docstring=['@inheritdoc']
         ))
         entity_repository_class.add_method(Phpmethod('getList', access=Phpmethod.PUBLIC,
-            params=['\Magento\Framework\Api\SearchCriteriaInterface $criteria'],
+            params=[r'\Magento\Framework\Api\SearchCriteriaInterface $criteria'],
             body="""$collection = $this->{variable}CollectionFactory->create();
             
                     $this->extensionAttributesJoinProcessor->process(
@@ -633,7 +636,7 @@ class EavEntitySnippet(Snippet):
         ))
         entity_repository_class.add_method(Phpmethod('delete', access=Phpmethod.PUBLIC,
             params=["{}Interface".format(entity_name_capitalized) + ' $' + entity_name_capitalized_after],
-            body="""try {{
+            body=r"""try {{
                             ${variable}Model = $this->{variable}Factory->create();
                             $this->resource->load(${variable}Model, ${variable}->get{entity_id}());
                             $this->resource->delete(${variable}Model);
@@ -673,7 +676,7 @@ class EavEntitySnippet(Snippet):
 
         data_entity_class.add_method(Phpmethod('set' + entity_id_capitalized,
             params=['${}'.format(entity_id_capitalized_after)],
-            docstring=['Set {}'.format(entity_id),'@param string ${}'.format(entity_id_capitalized_after),'@return \{}'.format(api_data_class.class_namespace)],
+            docstring=['Set {}'.format(entity_id),'@param string ${}'.format(entity_id_capitalized_after),'@return \\{}'.format(api_data_class.class_namespace)],
             body="""return $this->setData({}, ${});
             """.format('self::' + entity_id.upper(), entity_id_capitalized_after)
         ))
@@ -686,7 +689,7 @@ class EavEntitySnippet(Snippet):
 
         data_entity_class.add_method(Phpmethod('set' + field_name_capitalized,
             params=['${}'.format(lowerfirst(field_name_capitalized))],
-            docstring=['Set {}'.format(field_name),'@param string ${}'.format(lowerfirst(field_name_capitalized)),'@return \{}'.format(api_data_class.class_namespace)],
+            docstring=['Set {}'.format(field_name),'@param string ${}'.format(lowerfirst(field_name_capitalized)),'@return \\{}'.format(api_data_class.class_namespace)],
             body="""return $this->setData({}, ${});
             """.format('self::' + field_name.upper(), lowerfirst(field_name_capitalized))
         ))
@@ -717,7 +720,7 @@ class EavEntitySnippet(Snippet):
             }),
             Xmlnode('preference', attributes={
                 'for': "{}\\{}\\Api\\Data\\{}SearchResultsInterface".format(self._module.package, self._module.name, entity_name_capitalized),
-                'type': 'Magento\Framework\Api\SearchResults'
+                'type': r'Magento\Framework\Api\SearchResults'
             })
         ]))
 
@@ -767,7 +770,7 @@ class EavEntitySnippet(Snippet):
             docstring=[
                 'Index action',
                 '',
-                '@return \Magento\Framework\Controller\ResultInterface',
+                r'@return \Magento\Framework\Controller\ResultInterface',
             ]))
 
         self.add_class(index_controller_class)
@@ -1005,7 +1008,7 @@ class EavEntitySnippet(Snippet):
 
         # Generic button
         generic_button = Phpclass('Block\\Adminhtml\\' + entity_name.replace('_', '\\') + '\\Edit\\GenericButton',
-            dependencies=['Magento\\Backend\\Block\Widget\\Context'],
+            dependencies=[r'Magento\\Backend\\Block\\Widget\\Context'],
             abstract=True)
         generic_button.add_method(Phpmethod('__construct',
             params=['protected Context $context'],
@@ -1103,8 +1106,8 @@ class EavEntitySnippet(Snippet):
             docstring=[
                 'Init page',
                 '',
-                '@param \Magento\Backend\Model\View\Result\Page $resultPage',
-                '@return \Magento\Backend\Model\View\Result\Page'
+                r'@param \Magento\Backend\Model\View\Result\Page $resultPage',
+                r'@return \Magento\Backend\Model\View\Result\Page'
             ]))
         self.add_class(link_controller)
 
@@ -1129,7 +1132,7 @@ parent::__construct($context, $coreRegistry);""",
             ]
         ))
         delete_controller.add_method(Phpmethod('execute',
-            body="""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
+            body=r"""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     // check if we know what should be deleted
                     $id = $this->getRequest()->getParam('{entity_id}');
@@ -1159,7 +1162,7 @@ parent::__construct($context, $coreRegistry);""",
             docstring=[
                 'Delete action',
                 '',
-                '@return \Magento\Framework\Controller\ResultInterface',
+                r'@return \Magento\Framework\Controller\ResultInterface',
             ]
                     ))
         self.add_class(delete_controller)
@@ -1196,7 +1199,7 @@ parent::__construct($context, $coreRegistry);""",
                 '@param {}Factory $modelFactory'.format(entity_name_capitalized)
             ]))
         edit_controller.add_method(Phpmethod('execute',
-            body="""// 1. Get ID and create model
+            body=r"""// 1. Get ID and create model
                 $id = $this->getRequest()->getParam('{entity_id}');
                 $model = $this->modelFactory->create();
                 
@@ -1233,7 +1236,7 @@ parent::__construct($context, $coreRegistry);""",
             docstring=[
                 'Edit action',
                 '',
-                '@return \Magento\Framework\Controller\ResultInterface',
+                r'@return \Magento\Framework\Controller\ResultInterface',
             ]))
         self.add_class(edit_controller)
 
@@ -1259,7 +1262,7 @@ $this->repository = $repository;""",
                 '@param {}RepositoryInterface $repository'.format(entity_name_capitalized)
             ]))
         inline_edit_controller.add_method(Phpmethod('execute',
-            body="""/** @var \Magento\Framework\Controller\Result\Json $resultJson */
+            body=r"""/** @var \Magento\Framework\Controller\Result\Json $resultJson */
                     $resultJson = $this->jsonFactory->create();
                     $error = false;
                     $messages = [];
@@ -1300,7 +1303,7 @@ $this->repository = $repository;""",
             docstring=[
                 'Inline edit action',
                 '',
-                '@return \Magento\Framework\Controller\ResultInterface',
+                r'@return \Magento\Framework\Controller\ResultInterface',
             ]))
         self.add_class(inline_edit_controller)
 
@@ -1320,13 +1323,13 @@ $this->repository = $repository;""",
                 '@param \\Magento\\Backend\\Model\\View\\Result\\ForwardFactory $resultForwardFactory',
             ]))
         new_controller.add_method(Phpmethod('execute',
-            body="""/** @var \Magento\Framework\Controller\Result\Forward $resultForward */
+            body=r"""/** @var \Magento\Framework\Controller\Result\Forward $resultForward */
                     $resultForward = $this->resultForwardFactory->create();
                     return $resultForward->forward('edit');""",
             docstring=[
                 'New action',
                 '',
-                '@return \Magento\Framework\Controller\ResultInterface',
+                r'@return \Magento\Framework\Controller\ResultInterface',
             ],
             return_type='\\Magento\\Framework\\Controller\\ResultInterface'))
         self.add_class(new_controller)
@@ -1355,9 +1358,9 @@ $this->repository = $repository;""",
                 '{}RepositoryInterface $repository'.format(entity_name_capitalized),
                 '{}Factory $modelFactory'.format(entity_name_capitalized)
             ],
-            body="""$this->repository = $repository;
-$this->modelFactory = $modelFactory;
-parent::__construct($context);""",
+            body=""" $this->repository = $repository;
+                     $this->modelFactory = $modelFactory;
+                     parent::__construct($context);""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor',
@@ -1365,7 +1368,7 @@ parent::__construct($context);""",
                 '@param {}Factory $modelFactory'.format(entity_name_capitalized)
             ]))
         save_controller.add_method(Phpmethod('execute',
-            body="""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
+                    body=r"""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     $data = $this->getRequest()->getPostValue();
                     
@@ -1413,7 +1416,7 @@ parent::__construct($context);""",
             docstring=[
                 'Save action',
                 '',
-                '@return \Magento\Framework\Controller\ResultInterface',
+                r'@return \Magento\Framework\Controller\ResultInterface',
             ],
             return_type='\\Magento\\Framework\\Controller\\ResultInterface'))
         self.add_class(save_controller)
@@ -1477,7 +1480,7 @@ parent::__construct($context);""",
         self.add_class(data_provider)
 
         # Add model actions
-        actions = Phpclass('Ui\Component\Listing\Column\\' + entity_name.replace('_', '') + 'Actions', extends='\\Magento\\Ui\\Component\\Listing\\Columns\Column',
+        actions = Phpclass(r'Ui\Component\Listing\Column\\' + entity_name.replace('_', '') + 'Actions', extends=r'\\Magento\\Ui\\Component\\Listing\\Columns\Column',
             attributes=[
                 "const URL_PATH_EDIT = '{}/{}/edit';".format(frontname, entity_name.replace('_', '').lower()),
                 "const URL_PATH_DELETE = '{}/{}/delete';".format(frontname, entity_name.replace('_', '').lower()),

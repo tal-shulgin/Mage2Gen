@@ -67,7 +67,7 @@ class ObserverSnippet(Snippet):
 		observerFolder.extend([split_event[0], ''.join(upperfirst(item) for item in split_event[1:])])
 		observer = Phpclass(
 			'\\'.join(observerFolder),
-			dependencies=['\Magento\Framework\Event\Observer', '\Magento\Framework\Event\ObserverInterface'],
+			dependencies=[r'\Magento\Framework\Event\Observer', r'\Magento\Framework\Event\ObserverInterface'],
 			implements=['ObserverInterface'])
 		observer.add_method(Phpmethod(
 			'execute',

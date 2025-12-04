@@ -117,7 +117,7 @@ class MessageQueueSnippet(Snippet):
                 'name': consumer,
                 'queue': queue,
                 'connection': 'amqp',
-                'consumerInstance': 'Magento\Framework\MessageQueue\Consumer',
+                'consumerInstance': r'Magento\Framework\MessageQueue\Consumer',
                 'handler': '{}::{}'.format(consumer_class.class_namespace, handler_method)
             })
         ])

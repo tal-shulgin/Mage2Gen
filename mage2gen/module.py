@@ -560,9 +560,9 @@ class Module:
         else:
             self._composer['require'][require] = version
     def add_class(self, phpclass):
-        root_namespace = '{}\{}'.format(self.package, self.name)
+        root_namespace = r'{}\{}'.format(self.package, self.name)
         if root_namespace not in phpclass.class_namespace:
-            phpclass.class_namespace = '{}\{}'.format(root_namespace, phpclass.class_namespace)
+            phpclass.class_namespace = r'{}\{}'.format(root_namespace, phpclass.class_namespace)
         current_class = self._classes.get(phpclass.class_namespace)
         if current_class:
             current_class += phpclass

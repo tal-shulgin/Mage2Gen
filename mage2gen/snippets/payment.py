@@ -39,7 +39,7 @@ class PaymentSnippet(Snippet):
 			extends='AbstractMethod',
 			dependencies=[
 				'Magento\\Quote\\Api\\Data\\CartInterface',
-				'Magento\Payment\Model\Method\AbstractMethod'
+				r'Magento\Payment\Model\Method\AbstractMethod'
          ],
 			attributes=[
 				'protected $_code = "'+payment_code+'";',
@@ -114,7 +114,7 @@ class PaymentSnippet(Snippet):
 							]),
 							Xmlnode('field', attributes={'id':'allowspecific','type':'allowspecific','sortOrder':40,'showInWebsite':1,'showInStore':1,'showInDefault':1,'translate':'label'},match_attributes={'id'},nodes=[
 								Xmlnode('label',node_text='Payment from Applicable Countries'),
-								Xmlnode('source_model',node_text='Magento\\Payment\\Model\Config\\Source\\Allspecificcountries'),
+								Xmlnode('source_model',node_text=r'Magento\\Payment\\Model\Config\\Source\\Allspecificcountries'),
 							]),
 							Xmlnode('field', attributes={'id':'specificcountry','type':'multiselect','sortOrder':50,'showInWebsite':1,'showInStore':1,'showInDefault':1,'translate':'label'},match_attributes={'id'},nodes=[
 								Xmlnode('label',node_text='Payment from Applicable Countries'),

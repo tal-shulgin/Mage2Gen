@@ -1,4 +1,3 @@
-
 # A Magento 2 module generator library
 # Copyright (C) 2019 Mr. Lewis
 #
@@ -86,7 +85,7 @@ class CompanyAttributeSnippet(Snippet):
 
 
 		extension_attributes_xml = Xmlnode('config',attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:Api/etc/extension_attributes.xsd"},nodes=[
-			Xmlnode('extension_attributes',attributes={'for':"Magento\Company\Api\Data\CompanyInterface"},match_attributes={'for'},nodes=[
+			Xmlnode('extension_attributes',attributes={'for':r"Magento\Company\Api\Data\CompanyInterface"},match_attributes={'for'},nodes=[
 				Xmlnode('attribute',attributes={
 					'code':attribute_code,
 					'type':'string'
@@ -126,7 +125,7 @@ class CompanyAttributeSnippet(Snippet):
 		transformed_attribute_code = "".join([x[0].upper() + x[1:] for x in attribute_code.split("_")])
 
 		self.add_plugin('Magento\\Company\\Model\\Company\\DataProvider', 'getGeneralData', "$result['{attribute_code}'] = $company->getData('{attribute_code}');".format(attribute_code=attribute_code), extra_params=['\\Magento\\Company\\Api\\Data\\CompanyInterface $company'])
-		self.add_plugin('Magento\\Company\\Controller\\Adminhtml\\Index\Save', 'setCompanyRequestData', "$result->setData('{attribute_code}', $subject->getRequest()->getPostValue('general')['{attribute_code}']);".format(attribute_code=attribute_code))
+		self.add_plugin(r'Magento\\Company\\Controller\\Adminhtml\\Index\Save', 'setCompanyRequestData', "$result->setData('{attribute_code}', $subject->getRequest()->getPostValue('general')['{attribute_code}']);".format(attribute_code=attribute_code))
 		self.add_plugin('Magento\\Company\\Api\\CompanyRepositoryInterface', 'get',
 						"$companyExtension->set{transformed_attribute_code}($company->getData('{attribute_code}'));".format(attribute_code=attribute_code, transformed_attribute_code=transformed_attribute_code),
 						body_return="$company->setExtensionAttributes($companyExtension);\n\t\treturn $company;",
@@ -185,12 +184,12 @@ class CompanyAttributeSnippet(Snippet):
 		plugin = Phpclass('Plugin\\{}'.format(classname))
 		if construct:
 			plugin = Phpclass('Plugin\\{}'.format(classname),attributes=[
-				"""
+				r"""
 	/**
 	 * @var \Magento\Company\Model\CompanyRepository
 	 */
 	protected $companyRepository;""",
-				"""
+				r"""
     /**
      * @var \Magento\Company\Api\Data\CompanyExtensionFactory
      */

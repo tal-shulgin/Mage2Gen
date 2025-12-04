@@ -61,13 +61,13 @@ class BlockSnippet(Snippet):
 		# strip the classname of the module when filled in
 		classname = classname.replace('{}\\Block\\'.format(self.module_name.replace('_', '\\')), '')
 		# Add class
-		block = Phpclass('Block\\{}'.format(classname),'\Magento\Framework\View\Element\Template')
+		block = Phpclass('Block\\{}'.format(classname),r'\Magento\Framework\View\Element\Template')
 		scope_name = 'frontend'
-		context_class = '\Magento\Framework\View\Element\Template\Context'
+		context_class = r'\Magento\Framework\View\Element\Template\Context'
 		if scope == self.SCOPE_ADMINHTML:
-			block = Phpclass('Block\\Adminhtml\\{}'.format(classname), '\Magento\Backend\Block\Template')
+			block = Phpclass('Block\\Adminhtml\\{}'.format(classname), r'\Magento\Backend\Block\Template')
 			scope_name = 'adminhtml'
-			context_class = '\Magento\Backend\Block\Template\Context'
+			context_class = r'\Magento\Backend\Block\Template\Context'
 
 		block.add_method(Phpmethod(
 				'__construct',
@@ -127,7 +127,7 @@ class BlockSnippet(Snippet):
 				block_template,
 				body="""<?php
 /**
- * @var $block \{classname}
+ * @var $block \\{classname}
  */
 ?>
 <div>

@@ -1,25 +1,18 @@
 #!/usr/bin/env python3
 """
-Fix invalid escape sequences in Python files for Magento 2 module generator.
+Fix invalid escape sequences in Python files using tokenization.
 
-This script scans Python files for string literals containing backslashes that
-form invalid escape sequences (like \\M, \\F in PHP class names) and fixes them
-by either:
-1. Converting to raw strings (r'...') for simple strings
-2. Doubling backslashes for strings with format placeholders
-
-Usage:
-    python fix_escapes.py --dry-run /path/to/module
-    python fix_escapes.py --backup /path/to/module
-    python fix_escapes.py /path/to/module  # Apply changes
+This script uses the tokenize module to accurately find string literals
+and fix invalid escape sequences without corrupting multi-line strings.
 """
 
 import argparse
-import ast
 import os
 import re
 import sys
 import shutil
+import tokenize
+import io
 from typing import List, Dict, Any, Tuple
 
 # Valid Python escape sequences that should not be changed
@@ -31,7 +24,6 @@ VALID_ESCAPES = {
 # Pattern to detect format placeholders like {0}, {name}, etc.
 FORMAT_PLACEHOLDER_PATTERN = re.compile(r'(?<!\\)\{[^}]*\}')
 
-# ANSI color codes
 class Colors:
     GREEN = '\033[92m'
     YELLOW = '\033[93m'
@@ -78,27 +70,17 @@ def has_invalid_escapes(text: str) -> bool:
     while i < len(text) - 1:
         if text[i] == '\\':
             if not is_valid_escape_sequence(text, i):
-                # Check if it's likely a PHP namespace (capital letter after backslash)
                 if i + 1 < len(text) and text[i + 1].isupper():
                     return True
-            i += 2  # Skip the escape sequence
+            i += 2
         else:
             i += 1
     return False
 
-def fix_string_literal(text: str, has_format: bool = False) -> str:
-    """
-    Fix a string literal by either making it raw or doubling backslashes.
-    
-    Args:
-        text: The original string value
-        has_format: Whether the string contains format placeholders
-    
-    Returns:
-        The fixed string literal text
-    """
+def fix_string_content(text: str, has_format: bool = False) -> str:
+    """Fix the content of a string (without quotes)."""
     if has_format:
-        # Can't use raw string - double backslashes instead
+        # Double backslashes
         result = []
         i = 0
         while i < len(text):
@@ -114,120 +96,135 @@ def fix_string_literal(text: str, has_format: bool = False) -> str:
                 i += 1
         return ''.join(result)
     else:
-        # Can use raw string if no quotes inside
+        # Use raw string if possible
         if "'" not in text:
             return "r'" + text + "'"
         elif '"' not in text:
             return 'r"' + text + '"'
         else:
-            # Contains both quote types - must escape
             return text.replace('\\', '\\\\')
 
 def process_file(filepath: str, dry_run: bool = True) -> List[str]:
-    """Process a Python file and return list of changes made."""
+    """Process a Python file using tokenization."""
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
     except Exception as e:
         return [f"{Colors.RED}Error reading file: {e}{Colors.RESET}"]
     
-    try:
-        tree = ast.parse(content, filepath)
-    except SyntaxError as e:
-        return [f"{Colors.RED}SyntaxError: {e}{Colors.RESET}"]
-    
     changes = []
-    lines = content.splitlines(keepends=True)
     
-    class StringVisitor(ast.NodeVisitor):
-        def __init__(self):
-            self.string_nodes = []
-        
-        def visit_Constant(self, node):
-            if isinstance(node.value, str) and node.value:
-                self.string_nodes.append(node)
-        
-        # For Python < 3.8 compatibility
-        def visit_Str(self, node):
-            if isinstance(getattr(node, 's', ''), str):
-                self.string_nodes.append(node)
+    # Handle tokenization errors gracefully
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(content).readline))
+    except tokenize.TokenError as e:
+        return [f"{Colors.RED}Tokenization error (file may be corrupted): {e}{Colors.RESET}"]
+    except SyntaxError as e:
+        return [f"{Colors.RED}Syntax error: {e}{Colors.RESET}"]
     
-    visitor = StringVisitor()
-    visitor.visit(tree)
+    modifications = []
     
-    line_modifications = {}
-    
-    for node in visitor.string_nodes:
-        value = node.value if hasattr(node, 'value') else getattr(node, 's', '')
-        if not value or not isinstance(value, str):
-            continue
-        
-        if not has_invalid_escapes(value):
-            continue
-        
-        has_format = bool(FORMAT_PLACEHOLDER_PATTERN.search(value))
-        fixed_value = fix_string_literal(value, has_format)
-        
-        # Get line and column positions
-        line_no = node.lineno - 1
-        col_offset = node.col_offset
-        
-        if line_no not in line_modifications:
-            line_modifications[line_no] = []
-        
-        # Store original and fixed versions for display
-        original_repr = repr(value)
-        if has_format:
-            fixed_display = f'"{fixed_value}"'
-        elif fixed_value.startswith('r'):
-            fixed_display = fixed_value
-        else:
-            fixed_display = f'"{fixed_value}"'
-        
-        line_modifications[line_no].append({
-            'start': col_offset,
-            'end': col_offset + len(original_repr),
-            'fixed': fixed_value,
-            'original': original_repr,
-            'fixed_display': fixed_display,
-            'has_format': has_format
-        })
-        
-        # Show change context
-        lines_std = content.splitlines()
-        if line_no < len(lines_std):
-            context = lines_std[line_no].strip()
+    for i, token in enumerate(tokens):
+        if token.type == tokenize.STRING:
+            original_string = token.string
+            quote_char = original_string[0]
+            
+            # Skip already raw strings
+            if original_string.startswith('r'):
+                continue
+            
+            # Determine quote length
+            if original_string.startswith('"""') or original_string.startswith("'''"):
+                quote_len = 3
+            else:
+                quote_len = 1
+            
+            string_content = original_string[quote_len:-quote_len]
+            
+            # Check for invalid escapes
+            if not has_invalid_escapes(string_content):
+                continue
+            
+            # Check for format placeholders
+            has_format = bool(FORMAT_PLACEHOLDER_PATTERN.search(string_content))
+            
+            # Fix the content
+            fixed_content = fix_string_content(string_content, has_format)
+            
+            # Reconstruct with proper quotes
+            if has_format:
+                fixed_string = quote_char + fixed_content + quote_char
+            else:
+                fixed_string = 'r' + quote_char + string_content + quote_char
+            
+            modifications.append({
+                'start': token.start,
+                'end': token.end,
+                'original': original_string,
+                'fixed': fixed_string,
+                'has_format': has_format,
+                'line': token.start[0]
+            })
+            
             change_type = "Format string" if has_format else "Raw string"
+            context = token.line.strip() if token.line else ''
             changes.append(
-                f"{Colors.YELLOW}Line {node.lineno}{Colors.RESET}\n"
+                f"{Colors.YELLOW}Line {token.start[0]}{Colors.RESET}\n"
                 f"  {Colors.CYAN}Type:{Colors.RESET} {change_type}\n"
-                f"  {Colors.CYAN}Before:{Colors.RESET} {original_repr[:80]}\n"
-                f"  {Colors.CYAN}After:{Colors.RESET}  {fixed_display[:80]}\n"
+                f"  {Colors.CYAN}Before:{Colors.RESET} {original_string[:80]}\n"
+                f"  {Colors.CYAN}After:{Colors.RESET}  {fixed_string[:80]}\n"
                 f"  {Colors.CYAN}Context:{Colors.RESET} {context[:60]}"
             )
     
-    if not dry_run and line_modifications:
-        new_lines = []
-        for i, line in enumerate(lines):
-            if i in line_modifications:
-                # Sort modifications by start position in reverse to apply from right to left
-                mods = sorted(line_modifications[i], key=lambda x: x['start'], reverse=True)
-                for mod in mods:
-                    line = line[:mod['start']] + mod['fixed'] + line[mod['end']:]
-                new_lines.append(line)
+    if not dry_run and modifications:
+        # Apply modifications in reverse order
+        modifications.sort(key=lambda x: (x['line'], x['start'][1]), reverse=True)
+        
+        lines = content.splitlines(keepends=True)
+        
+        for mod in modifications:
+            start_line, start_col = mod['start']
+            end_line, end_col = mod['end']
+            
+            if start_line == end_line:
+                # Single line
+                line = lines[start_line - 1]
+                new_line = line[:start_col] + mod['fixed'] + line[end_col:]
+                lines[start_line - 1] = new_line
             else:
-                new_lines.append(line)
+                # Multi-line - replace entire range
+                first_line = lines[start_line - 1][:start_col]
+                last_line = lines[end_line - 1][end_col:]
+                middle_lines = mod['fixed'].splitlines(keepends=True)
+                
+                lines[start_line - 1] = first_line + middle_lines[0]
+                
+                # Insert middle lines
+                for i, line in enumerate(middle_lines[1:], 1):
+                    lines.insert(start_line, line)
+                
+                # Append end of last line
+                lines[start_line + len(middle_lines) - 1] = lines[start_line + len(middle_lines) - 1].rstrip('\n') + last_line
         
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
-                f.writelines(new_lines)
+                f.writelines(lines)
         except Exception as e:
             return [f"{Colors.RED}Error writing file: {e}{Colors.RESET}"]
     
     return changes
 
 def main():
-    parser = argparse.ArgumentParser(description='Fix invalid escape sequences in Python files')
+    parser = argparse.ArgumentParser(
+        description='Fix invalid escape sequences in Python files using tokenization',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python3 fix_escapes.py --dry-run ./mage2gen/
+  python3 fix_escapes.py --backup ./mage2gen/
+  python3 fix_escapes.py --verbose ./mage2gen/
+        """
+    )
     parser.add_argument('directory', help='Directory to scan for Python files')
     parser.add_argument('--dry-run', action='store_true', help='Show what would be changed')
     parser.add_argument('--backup', action='store_true', help='Backup files before modifying')
@@ -242,7 +239,6 @@ def main():
     
     python_files = []
     for root, dirs, files in os.walk(args.directory):
-        # Skip hidden and cache directories
         dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['__pycache__', 'venv', 'env', 'node_modules']]
         python_files.extend([os.path.join(root, f) for f in files if f.endswith('.py')])
     
@@ -256,6 +252,7 @@ def main():
     
     total_files_changed = 0
     total_changes = 0
+    error_files = []
     
     for filepath in python_files:
         if args.backup and not args.dry_run:
@@ -268,7 +265,10 @@ def main():
                 continue
         
         file_changes = process_file(filepath, dry_run=args.dry_run)
-        if file_changes:
+        
+        if any("error" in change.lower() for change in file_changes):
+            error_files.append((filepath, file_changes))
+        elif file_changes:
             total_files_changed += 1
             total_changes += len(file_changes)
             
@@ -278,7 +278,6 @@ def main():
                 for change in file_changes:
                     print(f"  {change}")
             else:
-                # Show summary of changes
                 formats = sum(1 for fc in file_changes if 'Format string' in fc)
                 raws = sum(1 for fc in file_changes if 'Raw string' in fc)
                 print(f"  {formats} format strings, {raws} raw string conversions")
@@ -287,6 +286,13 @@ def main():
     print(f"Files processed: {len(python_files)}")
     print(f"Files modified: {total_files_changed}")
     print(f"Total string literals fixed: {total_changes}")
+    
+    if error_files:
+        print(f"\n{Colors.RED}Files with errors:{Colors.RESET}")
+        for filepath, errors in error_files:
+            print(f"  {filepath}")
+            for error in errors:
+                print(f"    {error}")
     
     if args.dry_run:
         print(f"\n{Colors.YELLOW}Run without --dry-run to apply changes{Colors.RESET}")

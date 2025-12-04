@@ -41,7 +41,7 @@ class CustomerSectionDataSnippet(Snippet):
         section_class.add_method(Phpmethod(
             '__construct',
             params=[
-                '\Psr\Log\LoggerInterface $logger',
+                r'\Psr\Log\LoggerInterface $logger',
             ],
             body="$this->logger = $logger;",
             docstring=[
@@ -67,7 +67,7 @@ class CustomerSectionDataSnippet(Snippet):
                 Xmlnode(
                     'type',
                         attributes={
-                            'name': 'Magento\Customer\CustomerData\SectionPoolInterface'
+                            'name': r'Magento\Customer\CustomerData\SectionPoolInterface'
                         },
                         nodes=[
                             Xmlnode(

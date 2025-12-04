@@ -87,7 +87,7 @@ class RouterSnippet(Snippet):
 			module.attributes['before'] = 'Magento_Backend'
 
 		router_list_config = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[
-			Xmlnode('type', attributes={'name': 'Magento\Framework\App\RouterList'}, nodes=[
+			Xmlnode('type', attributes={'name': r'Magento\Framework\App\RouterList'}, nodes=[
 				Xmlnode('arguments', nodes=[
 					Xmlnode('argument', attributes={'name': 'routerList', 'xsi:type': 'array'}, nodes=[
 						Xmlnode('item', attributes={'name': '{}'.format(routername), 'xsi:type': 'array'}, nodes=[

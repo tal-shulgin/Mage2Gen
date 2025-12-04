@@ -76,7 +76,7 @@ class ProductTypeSnippet(Snippet):
         product_type_class.add_method(Phpmethod(
             'deleteTypeSpecificData',
             params=[
-                '\Magento\Catalog\Model\Product $product',
+                r'\Magento\Catalog\Model\Product $product',
             ],
             body="// method intentionally empty",
             docstring=['{@inheritdoc}']
@@ -105,7 +105,7 @@ class ProductTypeSnippet(Snippet):
             price_model_class = Phpclass('Model\\Product\\Price',
                                           extends='\\Magento\\Catalog\\Model\\Product\\Type\\Price', attributes=[])
             self.add_class(price_model_class)
-            price_model_class_name = "{}\{}\Model\Product\Price".format(self._module.package, self._module.name)
+            price_model_class_name = "{}\\{}\\Model\\Product\\Price".format(self._module.package, self._module.name)
             price_model_xml = Xmlnode('priceModel', attributes={'instance': price_model_class_name})
         else:
             price_model_xml = False

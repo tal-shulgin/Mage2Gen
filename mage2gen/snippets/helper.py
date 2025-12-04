@@ -31,8 +31,8 @@ class HelperSnippet(Snippet):
 			'Helper\\'+helper_name, 
 			extends='AbstractHelper',
 			dependencies = [
-			'Magento\Framework\App\Helper\AbstractHelper',
-			'Magento\Framework\App\Helper\Context',
+			r'Magento\Framework\App\Helper\AbstractHelper',
+			r'Magento\Framework\App\Helper\Context',
 			],
 			attributes = [
 			]

@@ -36,7 +36,7 @@ class CacheSnippet(Snippet):
 
 		cache_class.add_method(Phpmethod(
 			'__construct',
-			params=['\Magento\Framework\App\Cache\Type\FrontendPool $cacheFrontendPool'],
+			params=[r'\Magento\Framework\App\Cache\Type\FrontendPool $cacheFrontendPool'],
 			body="parent::__construct($cacheFrontendPool->get(self::TYPE_IDENTIFIER), self::CACHE_TAG);",
 			docstring=['@param \\Magento\\Framework\\App\\Cache\\Type\\FrontendPool $cacheFrontendPool']
 		))

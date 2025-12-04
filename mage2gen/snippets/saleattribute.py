@@ -99,7 +99,7 @@ class SalesAttributeSnippet(Snippet):
         
         if extra_params.get('used_in_admin_grid') and not sales_entity.__contains__('quote'):
             virtual_types = {
-                "sales_order": "Magento\\Sales\\Model\\ResourceModel\\Order\Grid",
+                "sales_order": r"Magento\\Sales\\Model\\ResourceModel\\Order\Grid",
                 "sales_invoice": "Magento\\Sales\\Model\\ResourceModel\\Order\\Invoice\\Grid",
                 "sales_shipment": "ShipmentGridAggregator",
                 "sales_creditmemo": "CreditmemoGridAggregator",

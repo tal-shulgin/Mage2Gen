@@ -191,7 +191,7 @@ class PageBuilderContentTypeSnippet(Snippet):
                 ]),
                 Xmlnode('dataProvider', attributes={
                     'name': data_source,
-                    'class': 'Magento\PageBuilder\Model\ContentType\DataProvider'
+                    'class': r'Magento\PageBuilder\Model\ContentType\DataProvider'
                 }, nodes=[
                     Xmlnode('settings', nodes=[
                         Xmlnode('requestFieldName'),

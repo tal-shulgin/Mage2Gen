@@ -245,7 +245,7 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
         # FIX #273: Inject dependency
         if used_in_product_listing:
             attributes.append('/**\n\t * @var \\Magento\\Eav\\Model\\ResourceModel\\Entity\\AttributeFactory\n\t */\n\tprotected $eavAttrEntity;')
-            dependencies.append('Magento\Eav\Model\ResourceModel\Entity\AttributeFactory')
+            dependencies.append(r'Magento\Eav\Model\ResourceModel\Entity\AttributeFactory')
 
         source_model = Phpclass(
             'Model\\Product\\Attribute\\Source\\{}'.format(upperfirst(attribute_code_capitalized)),

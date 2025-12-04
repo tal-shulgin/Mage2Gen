@@ -77,7 +77,7 @@ class ShippingSnippet(Snippet):
 							Xmlnode('label',node_text=method_name),
 							Xmlnode('field', attributes={'id':'active','type':'select','sortOrder':10,'showInWebsite':1,'showInStore':1,'showInDefault':1,'translate':'label'},match_attributes={'id'},nodes=[
 								Xmlnode('label',node_text='Enabled'),
-								Xmlnode('source_model',node_text='Magento\Config\Model\Config\Source\Yesno'),
+								Xmlnode('source_model',node_text=r'Magento\Config\Model\Config\Source\Yesno'),
 							]),
 							Xmlnode('field', attributes={'id':'name','type':'text','sortOrder':20,'showInWebsite':1,'showInStore':1,'showInDefault':1,'translate':'label'},match_attributes={'id'},nodes=[
 								Xmlnode('label',node_text='Method Name'),
@@ -95,12 +95,12 @@ class ShippingSnippet(Snippet):
 							Xmlnode('field', attributes={'id':'sallowspecific','type':'select','sortOrder':60,'showInWebsite':1,'showInStore':1,'showInDefault':1,'translate':'label'},match_attributes={'id'},nodes=[
 								Xmlnode('label',node_text='Ship to Applicable Countries'),
 								Xmlnode('frontend_class',node_text='shipping-applicable-country'),
-								Xmlnode('source_model',node_text='Magento\Shipping\Model\Config\Source\Allspecificcountries'),
+								Xmlnode('source_model',node_text=r'Magento\Shipping\Model\Config\Source\Allspecificcountries'),
 							]),
 							Xmlnode('field', attributes={'id':'specificcountry','type':'multiselect','sortOrder':70,'showInWebsite':1,'showInStore':1,'showInDefault':1,'translate':'label'},match_attributes={'id'},nodes=[
 								Xmlnode('label',node_text='Ship to Specific Countries'),
 								Xmlnode('can_be_empty',node_text='1'),
-								Xmlnode('source_model',node_text='Magento\Directory\Model\Config\Source\Country'),
+								Xmlnode('source_model',node_text=r'Magento\Directory\Model\Config\Source\Country'),
 							]),
 							Xmlnode('field', attributes={'id':'specificerrmsg','type':'textarea','sortOrder':80,'showInWebsite':1,'showInStore':1,'showInDefault':1,'translate':'label'},match_attributes={'id'},nodes=[
 								Xmlnode('label',node_text='Displayed Error Message'),

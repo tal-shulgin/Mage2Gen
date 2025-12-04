@@ -39,14 +39,14 @@ class PluginSnippet(Snippet):
 
 	Input for the plugin form 
 
-	- **classname:** Magento\Catalog\Model\Product 
+	- **classname:** Magento\\Catalog\\Model\\Product 
 	- **methodname:** getName
 	- **plugintype:** After
 
 	.. code::
 		
 		public function afterGetName(
-			Magento\Catalog\Model\Product $subject,
+			Magento\\Catalog\\Model\\Product $subject,
 			$result
 		){
 			return '|'.$result.'|';
@@ -96,7 +96,7 @@ class PluginSnippet(Snippet):
 		if plugintype == self.TYPE_AFTER:
 			params.append('$result')
 		elif plugintype == self.TYPE_AROUND:
-			params.append('\Closure $proceed')
+			params.append(r'\Closure $proceed')
 
 		split_classname = classname.split('\\')
 
@@ -194,7 +194,7 @@ class PluginSnippet(Snippet):
 	def params(cls):
 		return [
 			SnippetParam(name='classname', required=True,
-				description='Example: Magento\Catalog\Model\Product',
+				description=r'Example: Magento\Catalog\Model\Product',
 				regex_validator=r'^[\w\\]+$',
 				error_message='Only alphanumeric, underscore and backslash characters are allowed'),
 			SnippetParam(name='methodname', required=True,

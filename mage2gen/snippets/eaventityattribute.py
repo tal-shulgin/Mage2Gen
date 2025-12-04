@@ -62,7 +62,7 @@ class EavEntityAttributeSnippet(Snippet):
 		self.count = 1
 
 	def add(self, entity_model_class, attribute_label, frontend_input='text', required=False, options=None, source_model=False, extend_adminhtml_form=False, extra_params=None):
-		entity_type = "\{}::ENTITY".format(entity_model_class)
+		entity_type = "\\{}::ENTITY".format(entity_model_class)
 		entity_table = '{}_{}_entity'.format(self._module.package.lower(), entity_model_class.split('\\')[-1].lower())
 		extra_params = extra_params if extra_params else {}
 
@@ -82,7 +82,7 @@ class EavEntityAttributeSnippet(Snippet):
 		attribute_code_capitalized = ''.join(upperfirst(item) for item in split_attribute_code)
 
 		if source_model and frontend_input in ['multiselect', 'select']:
-			source_model = "\{}\{}\Model\Attribute\Source\{}::class".format(self._module.package, self._module.name, attribute_code_capitalized)
+			source_model = r"\{}\{}\Model\Attribute\Source\{}::class".format(self._module.package, self._module.name, attribute_code_capitalized)
 			options_array = []
 			for val in options:
 				options_array.append("['value' => '" + val.lower() + "', 'label' => __('" + val + "')]")
@@ -110,7 +110,7 @@ class EavEntityAttributeSnippet(Snippet):
 			options = options_php_array_string,
 			unique = 'true' if extra_params.get('unique', False) else 'false',
 			default = 'null',
-			backend = 'Magento\Eav\Model\Entity\Attribute\Backend\ArrayBackend' if frontend_input == 'multiselect' else '',
+			backend = r'Magento\Eav\Model\Entity\Attribute\Backend\ArrayBackend' if frontend_input == 'multiselect' else '',
 			source_model = source_model,
 			sort_order = '30',
 			frontend = ''
@@ -256,7 +256,7 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 			)
 
 	def add_source_model(self, attribute_code_capitalized, options_php_array_string):
-		source_model = Phpclass('Model\\Attribute\Source\\{}'.format(upperfirst(attribute_code_capitalized)),
+		source_model = Phpclass(r'Model\\Attribute\Source\\{}'.format(upperfirst(attribute_code_capitalized)),
 			extends='\\Magento\\Eav\\Model\\Entity\\Attribute\\Source\\AbstractSource')
 
 		source_model.add_method(Phpmethod(
@@ -277,7 +277,7 @@ $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
 			 SnippetParam(
 				 name='entity_model_class',
 				 required=True,
-				 description='Example: Magento\Customer\Model\Customer',
+				 description=r'Example: Magento\Customer\Model\Customer',
 				regex_validator=r'^[\w\\]+$',
 				error_message='Only alphanumeric, underscore and backslash characters are allowed'),
 			 SnippetParam(

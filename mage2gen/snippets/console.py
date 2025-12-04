@@ -41,11 +41,11 @@ class ConsoleSnippet(Snippet):
             'Console\\Command\\' + action_name, 
             extends='Command',
             dependencies=[
-                'Symfony\Component\Console\Command\Command',
-                'Symfony\Component\Console\Input\InputArgument',
-                'Symfony\Component\Console\Input\InputOption',
-                'Symfony\Component\Console\Input\InputInterface',
-                'Symfony\Component\Console\Output\OutputInterface'
+                r'Symfony\Component\Console\Command\Command',
+                r'Symfony\Component\Console\Input\InputArgument',
+                r'Symfony\Component\Console\Input\InputOption',
+                r'Symfony\Component\Console\Input\InputInterface',
+                r'Symfony\Component\Console\Output\OutputInterface'
             ],
             attributes=[
                 'private const NAME_ARGUMENT = "name";',
@@ -94,7 +94,7 @@ parent::configure();
 		self.add_class(console);
 
 		config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[
-			Xmlnode('type', attributes={'name': 'Magento\Framework\Console\CommandList'}, nodes=[
+			Xmlnode('type', attributes={'name': r'Magento\Framework\Console\CommandList'}, nodes=[
 				Xmlnode('arguments', nodes=[
 					Xmlnode('argument', 
 							attributes={

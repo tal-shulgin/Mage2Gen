@@ -78,9 +78,9 @@ class ControllerSnippet(Snippet):
 		controller = Phpclass('\\'.join(controller_class), implements=[action_interface], attributes=[
 			"/**\n\t * @var PageFactory\n\t */\n\tprotected $resultPageFactory;"
 		], dependencies=[
-			'Magento\Framework\App\Action\{}'.format(action_interface),
-			'Magento\Framework\View\Result\PageFactory',
-			'Magento\Framework\Controller\ResultInterface',
+			r'Magento\Framework\App\Action\{}'.format(action_interface),
+			r'Magento\Framework\View\Result\PageFactory',
+			r'Magento\Framework\Controller\ResultInterface',
 		])
 		if ajax:
 			controller.attributes.extend([
@@ -89,10 +89,10 @@ class ControllerSnippet(Snippet):
 				"/**\n\t * @var Http\n\t */\n\tprotected $http;",
 			])
 			controller.dependencies.extend([
-				'Magento\Framework\Serialize\Serializer\Json',
-				'Psr\Log\LoggerInterface',
-				'Magento\Framework\App\Response\Http',
-				'Magento\Framework\Exception\LocalizedException'
+				r'Magento\Framework\Serialize\Serializer\Json',
+				r'Psr\Log\LoggerInterface',
+				r'Magento\Framework\App\Response\Http',
+				r'Magento\Framework\Exception\LocalizedException'
 			])
 			controller.add_method(Phpmethod(
 				'__construct',
@@ -117,10 +117,10 @@ class ControllerSnippet(Snippet):
 				]
 			))
 			execute_body = """try {
-			    return $this->jsonResponse('your response');
+         		return $this->jsonResponse('your response');
 			} catch (LocalizedException $e) {
 			    return $this->jsonResponse($e->getMessage());
-			} catch (\Exception $e) {
+			} catch (\\Exception $e) {
 			    $this->logger->critical($e);
 			    return $this->jsonResponse($e->getMessage());
 			}
@@ -182,10 +182,10 @@ return $this->http->setBody(
 			block_class.append(section)
 			block_class.extend([part.capitalize() for part in action_parts])
 
-			block_extend = '\Magento\Backend\Block\Template' if adminhtml else '\Magento\Framework\View\Element\Template'
+			block_extend = r'\Magento\Backend\Block\Template' if adminhtml else r'\Magento\Framework\View\Element\Template'
 			block = Phpclass('\\'.join(block_class), block_extend)
 
-			block_context_class = '\Magento\Backend\Block\Template\Context' if adminhtml else '\Magento\Framework\View\Element\Template\Context'
+			block_context_class = r'\Magento\Backend\Block\Template\Context' if adminhtml else r'\Magento\Framework\View\Element\Template\Context'
 			block.add_method(Phpmethod(
 				'__construct',
 				params=[

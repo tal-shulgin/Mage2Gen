@@ -56,20 +56,20 @@ class CategoryAttributeSnippet(Snippet):
     ]
 
     CATEGORY_SOURCE_MODELS = [
-        ('Magento\Eav\Model\Entity\Attribute\Source\Boolean', 'Magento\Eav\Model\Entity\Attribute\Source\Boolean'),
+        (r'Magento\Eav\Model\Entity\Attribute\Source\Boolean', r'Magento\Eav\Model\Entity\Attribute\Source\Boolean'),
         (
-        'Magento\Catalog\Model\Category\Attribute\Source\Page', 'Magento\Catalog\Model\Category\Attribute\Source\Page'),
+        r'Magento\Catalog\Model\Category\Attribute\Source\Page', r'Magento\Catalog\Model\Category\Attribute\Source\Page'),
         (
-        'Magento\Catalog\Model\Category\Attribute\Source\Mode', 'Magento\Catalog\Model\Category\Attribute\Source\Mode'),
-        ('Magento\Catalog\Model\Category\Attribute\Source\Sortby',
-         'Magento\Catalog\Model\Category\Attribute\Source\Sortby'),
+        r'Magento\Catalog\Model\Category\Attribute\Source\Mode', r'Magento\Catalog\Model\Category\Attribute\Source\Mode'),
+        (r'Magento\Catalog\Model\Category\Attribute\Source\Sortby',
+         r'Magento\Catalog\Model\Category\Attribute\Source\Sortby'),
         ('', '------------------'),
         ('custom', 'Create Your own')
     ]
 
     CATEGORY_BACKEND_MODELS = [
-        ('Magento\Catalog\Model\Category\Attribute\Backend\Image',
-         'Magento\Catalog\Model\Category\Attribute\Backend\Image')
+        (r'Magento\Catalog\Model\Category\Attribute\Backend\Image',
+         r'Magento\Catalog\Model\Category\Attribute\Backend\Image')
     ]
 
     description = """
@@ -93,14 +93,14 @@ class CategoryAttributeSnippet(Snippet):
         if not attribute_code:
             attribute_code = attribute_label.lower().replace(' ', '_')[:60]
         if frontend_input == 'select' and not source_model:
-            source_model = "Magento\Eav\Model\Entity\Attribute\Source\Boolean"
+            source_model = r"Magento\Eav\Model\Entity\Attribute\Source\Boolean"
         elif frontend_input == 'multiselect':
-            backend_model = "Magento\Eav\Model\Entity\Attribute\Backend\ArrayBackend"
+            backend_model = r"Magento\Eav\Model\Entity\Attribute\Backend\ArrayBackend"
             if not source_model:
-                source_model = "Magento\Catalog\Model\Category\Attribute\Source\Page"
+                source_model = r"Magento\Catalog\Model\Category\Attribute\Source\Page"
         elif frontend_input == "image":
             source_model = ''
-            backend_model = "Magento\Catalog\Model\Category\Attribute\Backend\Image"
+            backend_model = r"Magento\Catalog\Model\Category\Attribute\Backend\Image"
         elif frontend_input != 'multiselect' and frontend_input != 'select':
             source_model = ''
             backend_model = ''
@@ -112,7 +112,7 @@ class CategoryAttributeSnippet(Snippet):
         if source_model == 'custom' and source_model_options and frontend_input == 'select' or frontend_input == 'multiselect':
             source_model_class = Phpclass(
                 'Model\\Category\\Attribute\\Source\\' + ''.join(n.capitalize() for n in attribute_code.split('_')),
-                extends='\Magento\Eav\Model\Entity\Attribute\Source\AbstractSource'
+                extends=r'\Magento\Eav\Model\Entity\Attribute\Source\AbstractSource'
             )
 
             if frontend_input == 'select':
@@ -241,7 +241,7 @@ $eavSetup->removeAttribute(\\Magento\\Catalog\\Model\\Category::ENTITY, '{attrib
             body="return [\n\n];",
             docstring=[
                 '@inheritdoc'
-            ]
+        ]
         ))
         self.add_class(install_patch)
 
@@ -345,7 +345,7 @@ $eavSetup->removeAttribute(\\Magento\\Catalog\\Model\\Category::ENTITY, '{attrib
                 name='source_model',
                 choises=cls.CATEGORY_SOURCE_MODELS,
                 depend={'frontend_input': r'select|multiselect'},
-                default='Magento\Eav\Model\Entity\Attribute\Source\Boolean'),
+                default=r'Magento\Eav\Model\Entity\Attribute\Source\Boolean'),
             SnippetParam(
                 name='source_model_options',
                 required=True,

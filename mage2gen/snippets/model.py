@@ -926,7 +926,7 @@ parent::__construct($context, $coreRegistry);""",
             ]
         ))
         delete_controller.add_method(Phpmethod('execute',
-            body="""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
+            body="""/** @var \\Magento\\Backend\\Model\\View\\Result\\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     // check if we know what should be deleted
                     $id = $this->getRequest()->getParam('{model_id}');
@@ -1055,7 +1055,7 @@ $this->repository = $repository;""",
                 '@param {}RepositoryInterface $repository'.format(model_name_capitalized)
             ]))
         inline_edit_controller.add_method(Phpmethod('execute',
-            body="""/** @var \Magento\Framework\Controller\Result\Json $resultJson */
+            body="""/** @var \\Magento\\Framework\\Controller\\Result\\Json $resultJson */
                     $resultJson = $this->jsonFactory->create();
                     $error = false;
                     $messages = [];
@@ -1161,7 +1161,7 @@ parent::__construct($context);""",
                 '@param {}Factory $modelFactory'.format(model_name_capitalized),
             ]))
         save_controller.add_method(Phpmethod('execute',
-            body="""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
+            body="""/** @var \\Magento\\Backend\\Model\\View\\Result\\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     $data = $this->getRequest()->getPostValue();
                     
@@ -1281,7 +1281,7 @@ parent::__construct($context);""",
 
         # Add model actions
         actions = Phpclass(
-            'Ui\Component\Listing\Column\\' + model_name.replace('_', '') + 'Actions',
+            'Ui\\Component\\Listing\\Column\\' + model_name.replace('_', '') + 'Actions',
             extends='\\Magento\\Ui\\Component\\Listing\\Columns\\Column',
             attributes=[
                 "const URL_PATH_EDIT = '{}/{}/edit';".format(frontname, model_name.replace('_', '').lower()),
