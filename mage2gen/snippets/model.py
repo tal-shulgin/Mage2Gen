@@ -213,6 +213,24 @@ class ModelSnippet(Snippet):
                 ]
             )
 
+        foreign_key_node = False
+        if extra_params.get('foreign_key_table') and extra_params.get('foreign_key_column'):
+            foreign_key_node = Xmlnode(
+                'constraint',
+                attributes={
+                    'xsi:type': 'foreign',
+                    'referenceId': '{}_{}_{}_{}'.format(model_table, field_name, extra_params.get('foreign_key_table'), extra_params.get('foreign_key_column')).upper(),
+                    'table': model_table,
+                    'column': field_name,
+                    'referenceTable': extra_params.get('foreign_key_table'),
+                    'referenceColumn': extra_params.get('foreign_key_column'),
+                    'onDelete': extra_params.get('foreign_key_on_delete', 'CASCADE')
+                },
+                nodes=[
+                    Xmlnode('column', attributes={'name': field_name})
+                ]
+            )
+
         # Create db_schema.xml declaration
         self.add_xml('etc/db_schema.xml', Xmlnode('schema', attributes={
             'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd"}, nodes=[
@@ -240,7 +258,8 @@ class ModelSnippet(Snippet):
                     })
                 ]),
                 Xmlnode('column', attributes=attributes),
-                index_xml_node
+                index_xml_node,
+                foreign_key_node
             ])
         ]))
 
@@ -543,6 +562,7 @@ class ModelSnippet(Snippet):
         # create controller
         index_controller_class = Phpclass('Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Index', extends='\\Magento\\Backend\\App\\Action',
             attributes=[
+            "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), model_name),
             'protected $resultPageFactory;'
             ])
 
@@ -589,7 +609,7 @@ class ModelSnippet(Snippet):
                     'title': model_name.replace('_', ' '),
                     'module': self.module_name,
                     'sortOrder': 9999,
-                    'resource': 'Magento_Backend::content',
+                    'resource': '{}_{}::{}'.format(self._module.package, self._module.name, model_name),
                     'parent': '{}::top_level'.format(self._module.package),
                     'action': '{}/{}/index'.format(frontname, model_name.lower().replace('_', ''))
                 })
@@ -1016,6 +1036,7 @@ class ModelSnippet(Snippet):
         # Inline Controller
         inline_edit_controller = Phpclass('Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\InlineEdit', extends='\\Magento\\Backend\\App\\Action',
             attributes=[
+                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), model_name),
                 'protected $jsonFactory;'
             ])
         inline_edit_controller.add_method(Phpmethod('__construct',
@@ -1103,7 +1124,10 @@ class ModelSnippet(Snippet):
             'Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Save',
             dependencies=['Magento\Framework\Exception\LocalizedException'],
             extends='\\Magento\\Backend\\App\\Action',
-            attributes=['protected $dataPersistor;']
+            attributes=[
+                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), model_name),
+                'protected $dataPersistor;'
+            ]
         )
 
         new_controller.add_method(Phpmethod('__construct',
@@ -1620,5 +1644,26 @@ class ModelSnippet(Snippet):
                 required=False,
                 regex_validator=r'^[a-zA-Z]{1}\w+$',
                 error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character.',
+            ),
+            SnippetParam(
+                name='foreign_key_table',
+                description='Foreign key reference table',
+                required=False,
+                regex_validator=r'^[a-zA-Z]{1}\w+$',
+                error_message='Only alphanumeric and underscore characters are allowed.'
+            ),
+            SnippetParam(
+                name='foreign_key_column',
+                description='Foreign key reference column',
+                required=False,
+                regex_validator=r'^[a-zA-Z]{1}\w+$',
+                error_message='Only alphanumeric and underscore characters are allowed.'
+            ),
+            SnippetParam(
+                name='foreign_key_on_delete',
+                description='Foreign key On Delete Action',
+                required=False,
+                default='CASCADE',
+                choises=[('CASCADE', 'CASCADE'), ('SET NULL', 'SET NULL'), ('NO ACTION', 'NO ACTION')]
             )
         ]

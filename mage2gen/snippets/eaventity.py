@@ -737,6 +737,7 @@ class EavEntitySnippet(Snippet):
         # create controller
         index_controller_class = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Index', extends='\\Magento\\Backend\\App\\Action',
             attributes=[
+            "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), entity_name),
             'protected $resultPageFactory;'
             ])
 
@@ -784,7 +785,7 @@ class EavEntitySnippet(Snippet):
                     'title': entity_name.replace('_', ' '),
                     'module': self.module_name,
                     'sortOrder': 9999,
-                    'resource': 'Magento_Backend::content',
+                    'resource': '{}_{}::{}'.format(self._module.package, self._module.name, entity_name),
                     'parent': '{}::top_level'.format(self._module.package),
                     'action': '{}/{}/index'.format(frontname, entity_name.lower().replace('_', ''))
                 })
@@ -1193,7 +1194,10 @@ class EavEntitySnippet(Snippet):
         self.add_class(edit_controller)
 
         # Inline Controller
-        inline_edit_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\InlineEdit', extends='\\Magento\\Backend\\App\\Action')
+        inline_edit_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\InlineEdit', extends='\\Magento\\Backend\\App\\Action',
+            attributes=[
+                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), entity_name)
+            ])
         inline_edit_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
                 'protected \\Magento\\Framework\\Controller\\Result\\JsonFactory $jsonFactory'],
@@ -1268,7 +1272,10 @@ class EavEntitySnippet(Snippet):
         self.add_class(new_controller)
 
         # Save Controller
-        new_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Save', dependencies=['Magento\Framework\Exception\LocalizedException'], extends='\\Magento\\Backend\\App\\Action')
+        new_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Save', dependencies=['Magento\Framework\Exception\LocalizedException'], extends='\\Magento\\Backend\\App\\Action',
+            attributes=[
+                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), entity_name)
+            ])
         new_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
                 'protected \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor'],
