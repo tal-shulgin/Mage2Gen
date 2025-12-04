@@ -924,7 +924,25 @@ class ModelSnippet(Snippet):
         self.add_class(link_controller)
 
         # Delete controller
-        delete_controller = Phpclass('Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Delete', extends='\\' + link_controller.class_namespace)
+        delete_controller = Phpclass(
+            'Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Delete', 
+            extends='\\' + link_controller.class_namespace,
+            attributes=['private $repository;']
+        )
+        delete_controller.add_method(Phpmethod('__construct',
+            params=[
+                '\\Magento\\Backend\\App\\Action\\Context $context',
+                '\\Magento\\Framework\\Registry $coreRegistry',
+                repo_interface + ' $repository'
+            ],
+            body="""$this->repository = $repository;
+parent::__construct($context, $coreRegistry);""",
+            docstring=[
+                '@param \\Magento\\Backend\\App\\Action\\Context $context',
+                '@param \\Magento\\Framework\\Registry $coreRegistry',
+                '@param ' + repo_interface + ' $repository'
+            ]
+        ))
         delete_controller.add_method(Phpmethod('execute',
             body="""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
@@ -933,9 +951,7 @@ class ModelSnippet(Snippet):
                     if ($id) {{
                         try {{
                             // init model and delete
-                            $model = $this->_objectManager->create(\{model_class}::class);
-                            $model->load($id);
-                            $model->delete();
+                            $this->repository->deleteById($id);
                             // display success message
                             $this->messageManager->addSuccessMessage(__('You deleted the {model_name}.'));
                             // go to grid
@@ -952,14 +968,13 @@ class ModelSnippet(Snippet):
                     // go to grid
                     return $resultRedirect->setPath('*/*/');""".format(
                         model_id = model_id,
-                        model_class = model_class.class_namespace,
                         model_name = model_name.replace('_', ' ').title()),
             docstring=[
                 'Delete action',
                 '',
                 '@return \Magento\Framework\Controller\ResultInterface',
             ]
-                    ))
+        ))
         self.add_class(delete_controller)
 
         # Edit controller
@@ -1120,25 +1135,39 @@ class ModelSnippet(Snippet):
         self.add_class(new_controller)
 
         # Save Controller
-        new_controller = Phpclass(
+        save_controller = Phpclass(
             'Controller\\Adminhtml\\' + model_name.replace('_', '') + '\\Save',
-            dependencies=['Magento\Framework\Exception\LocalizedException'],
+            dependencies=[
+                'Magento\\Framework\\Exception\\LocalizedException',
+                repo_interface,
+                model_class.class_namespace + 'Factory'
+            ],
             extends='\\Magento\\Backend\\App\\Action',
             attributes=[
                 "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), model_name),
-                'protected $dataPersistor;'
+                'protected $dataPersistor;',
+                'private $repository;',
+                'private $modelFactory;'
             ]
         )
 
-        new_controller.add_method(Phpmethod('__construct',
-            params=['\\Magento\\Backend\\App\\Action\\Context $context',
-                'protected \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor'],
-            body="""parent::__construct($context);""",
+        save_controller.add_method(Phpmethod('__construct',
+            params=[
+                '\\Magento\\Backend\\App\\Action\\Context $context',
+                'protected \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor',
+                '{}RepositoryInterface $repository'.format(model_name_capitalized),
+                '{}Factory $modelFactory'.format(model_name_capitalized)
+            ],
+            body="""$this->repository = $repository;
+$this->modelFactory = $modelFactory;
+parent::__construct($context);""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor',
+                '@param {}RepositoryInterface $repository'.format(model_name_capitalized),
+                '@param {}Factory $modelFactory'.format(model_name_capitalized),
             ]))
-        new_controller.add_method(Phpmethod('execute',
+        save_controller.add_method(Phpmethod('execute',
             body="""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     $data = $this->getRequest()->getPostValue();
@@ -1149,16 +1178,21 @@ class ModelSnippet(Snippet):
                     
                     $id = $this->getRequest()->getParam('{model_id}');
 
-                    $model = $this->_objectManager->create(\{model_class}::class)->load($id);
-                    if (!$model->getId() && $id) {{
-                        $this->messageManager->addErrorMessage(__('This {model_name} no longer exists.'));
-                        return $resultRedirect->setPath('*/*/');
+                    if ($id) {{
+                        try {{
+                            $model = $this->repository->get($id);
+                        }} catch (NoSuchEntityException $e) {{
+                            $this->messageManager->addErrorMessage(__('This {model_name} no longer exists.'));
+                            return $resultRedirect->setPath('*/*/');
+                        }}
+                    }} else {{
+                        $model = $this->modelFactory->create();
                     }}
 
                     $model->setData($data);
 
                     try {{
-                        $model->save();
+                        $this->repository->save($model);
                         $this->messageManager->addSuccessMessage(__('You saved the {model_name}.'));
                         $this->dataPersistor->clear('{register_model}');
 
@@ -1176,7 +1210,6 @@ class ModelSnippet(Snippet):
                     return $resultRedirect->setPath('*/*/edit', ['{model_id}' => $this->getRequest()->getParam('{model_id}')]);
                     """.format(
                         model_id = model_id,
-                        model_class = model_class.class_namespace,
                         model_name = model_name.replace('_', ' ').title(),
                         register_model = register_model
                     ),
@@ -1184,8 +1217,9 @@ class ModelSnippet(Snippet):
                 'Save action',
                 '',
                 '@return \Magento\Framework\Controller\ResultInterface',
-            ]))
-        self.add_class(new_controller)
+            ],
+            return_type='\\Magento\\Framework\\Controller\\ResultInterface'))
+        self.add_class(save_controller)
 
         # Add model provider
         data_provider = Phpclass(

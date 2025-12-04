@@ -78,14 +78,14 @@ class ProductAttributeSnippet(Snippet):
 		user_defined = 'true'
 		
 		# FIX #352: Only generate options array if inputs need it
-		options_php_array_string = "''"
-		if options:
-			options_list = options.split(',')
-			options_php_array = '"'+'","'.join(x.strip() for x in options_list) + '"'
-			options_php_array_string = "array('values' => array("+options_php_array+"))"
-		elif frontend_input in ['select', 'multiselect']:
-			# Default empty options only for select types
-			options_php_array_string = "array('values' => array(''))"
+        options_php_array_string = "[]" # Changed from "''" to "[]"
+        if options:
+            options_list = options.split(',')
+            options_php_array = '"'+'","'.join(x.strip() for x in options_list) + '"'
+            options_php_array_string = "['values' => ["+options_php_array+"]]" # Modern PHP syntax
+        elif frontend_input in ['select', 'multiselect']:
+            # Default empty options only for select types
+            options_php_array_string = "['values' => ['']]"
 
 		attribute_code = extra_params.get('attribute_code', None)
 		if not attribute_code:

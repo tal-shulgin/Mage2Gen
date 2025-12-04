@@ -112,21 +112,8 @@ class CategoryAttributeSnippet(Snippet):
         if source_model == 'custom' and source_model_options and frontend_input == 'select' or frontend_input == 'multiselect':
             source_model_class = Phpclass(
                 'Model\\Category\\Attribute\\Source\\' + ''.join(n.capitalize() for n in attribute_code.split('_')),
-                extends='\Magento\Eav\Model\Entity\Attribute\Source\AbstractSource',
-                attributes=[
-                    'protected $_optionsData;'
-                ]
+                extends='\Magento\Eav\Model\Entity\Attribute\Source\AbstractSource'
             )
-
-            source_model_class.add_method(Phpmethod('__construct',
-                                                    params=['array $options'],
-                                                    body="$this->_optionsData = $options;",
-                                                    docstring=[
-                                                        'Constructor',
-                                                        '',
-                                                        '@param array $options',
-                                                    ]
-                                                    ))
 
             if frontend_input == 'select':
                 to_option_array = "[\n        {}\n    ]".format(',\n        '.join(

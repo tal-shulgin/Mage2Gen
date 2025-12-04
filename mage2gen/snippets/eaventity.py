@@ -496,8 +496,14 @@ class EavEntitySnippet(Snippet):
         self.add_xml('etc/module.xml', etc_module)
         
         # Create collection
-        collection_entity_class = Phpclass('Model\\ResourceModel\\' + entity_name_capitalized.replace('_', '\\') + '\\Collection',
-                extends='\\Magento\\Eav\\Model\\Entity\\Collection\\AbstractCollection')
+        collection_entity_class = Phpclass(
+            'Model\\ResourceModel\\' + entity_name_capitalized.replace('_', '\\') + '\\Collection',
+            extends='\\Magento\\Eav\\Model\\Entity\\Collection\\AbstractCollection',
+            # FIXED: Added _idFieldName for Mass Action Support
+            attributes=[
+                "/**\n\t * @inheritDoc\n\t */\n\tprotected $_idFieldName = '{}';".format(entity_id),
+            ]
+        )
         collection_entity_class.add_method(Phpmethod('_construct',
             access=Phpmethod.PROTECTED,
             body="$this->_init(\n    \{}::class,\n    \{}::class\n);".format(
@@ -720,7 +726,7 @@ class EavEntitySnippet(Snippet):
             self.add_adminhtml_grid(entity_name, field_name, entity_table, entity_id, collection_entity_class, field_element_type, top_level_menu, adminhtml_form)
 
         if adminhtml_form:
-            self.add_adminhtml_form(entity_name, field_name, entity_table, entity_id, collection_entity_class, entity_class, required, field_element_type)
+            self.add_adminhtml_form(entity_name, field_name, entity_table, entity_id, collection_entity_class, entity_class, required, field_element_type, api_repository_class, entity_name_capitalized)
             self.add_acl(entity_name)
 
 
@@ -939,8 +945,10 @@ class EavEntitySnippet(Snippet):
                 columns_xml
             ]))
 
-    def add_adminhtml_form(self, entity_name, field_name, entity_table, entity_id, collection_entity_class, entity_class, required, field_element_type):
+    def add_adminhtml_form(self, entity_name, field_name, entity_table, entity_id, collection_entity_class, entity_class, required, field_element_type, api_repository_class, entity_name_capitalized):
         frontname = self.module_name.lower()
+        repo_interface = "\\{}\\{}\\Api\\{}RepositoryInterface".format(self._module.package, self._module.name, entity_name_capitalized)
+
         # Add block buttons
         # Back button
         back_button = Phpclass('Block\\Adminhtml\\' + entity_name.replace('_', '\\') + '\\Edit\\BackButton', implements=['ButtonProviderInterface'],
@@ -1100,35 +1108,49 @@ class EavEntitySnippet(Snippet):
         self.add_class(link_controller)
 
         # Delete controller
-        delete_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Delete', extends='\\' + link_controller.class_namespace)
+        delete_controller = Phpclass(
+            'Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Delete', 
+            extends='\\' + link_controller.class_namespace,
+            attributes=['private $repository;']
+        )
+        delete_controller.add_method(Phpmethod('__construct',
+            params=[
+                '\\Magento\\Backend\\App\\Action\\Context $context',
+                '\\Magento\\Framework\\Registry $coreRegistry',
+                repo_interface + ' $repository'
+            ],
+            body="""$this->repository = $repository;
+parent::__construct($context, $coreRegistry);""",
+            docstring=[
+                '@param \\Magento\\Backend\\App\\Action\\Context $context',
+                '@param \\Magento\\Framework\\Registry $coreRegistry',
+                '@param ' + repo_interface + ' $repository'
+            ]
+        ))
         delete_controller.add_method(Phpmethod('execute',
             body="""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     // check if we know what should be deleted
                     $id = $this->getRequest()->getParam('{entity_id}');
-                    
-                    if (!$id) {{
-                        // display error message
-                        $this->messageManager->addErrorMessage(__('We can\\\'t find a {entity_name} to delete.'));
-                        // go to grid
-                        return $resultRedirect->setPath('*/*/');
+                    if ($id) {{
+                        try {{
+                            // init model and delete
+                            $this->repository->deleteById($id);
+                            // display success message
+                            $this->messageManager->addSuccessMessage(__('You deleted the {entity_name}.'));
+                            // go to grid
+                            return $resultRedirect->setPath('*/*/');
+                        }} catch (\Exception $e) {{
+                            // display error message
+                            $this->messageManager->addErrorMessage($e->getMessage());
+                            // go back to edit form
+                            return $resultRedirect->setPath('*/*/edit', ['{entity_id}' => $id]);
+                        }}
                     }}
-                    
-                    try {{
-                        // init model and delete
-                        $model = $this->_objectManager->create(\{entity_class}::class);
-                        $model->load($id);
-                        $model->delete();
-                        // display success message
-                        $this->messageManager->addSuccessMessage(__('You deleted the {entity_name}.'));
-                        // go to grid
-                        return $resultRedirect->setPath('*/*/');
-                    }} catch (\Exception $e) {{
-                        // display error message
-                        $this->messageManager->addErrorMessage($e->getMessage());
-                        // go back to edit form
-                        return $resultRedirect->setPath('*/*/edit', ['{entity_id}' => $id]);
-                    }}""".format(
+                    // display error message
+                    $this->messageManager->addErrorMessage(__('We can\\\'t find a {entity_name} to delete.'));
+                    // go to grid
+                    return $resultRedirect->setPath('*/*/');""".format(
                         entity_id = entity_id,
                         entity_class = entity_class.class_namespace,
                         entity_name = entity_name.replace('_', ' ').title()),
@@ -1142,32 +1164,52 @@ class EavEntitySnippet(Snippet):
         self.add_class(delete_controller)
 
         # Edit controller
-        edit_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Edit', extends= '\\' + link_controller.class_namespace)
+        edit_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Edit', extends= '\\' + link_controller.class_namespace,
+            attributes=[
+                'protected $resultPageFactory;',
+                'private $repository;'
+            ],
+            dependencies=[
+                'Magento\\Framework\\Exception\\NoSuchEntityException',
+                repo_interface
+            ])
         edit_controller.add_method(Phpmethod('__construct',
             params=['\\Magento\\Backend\\App\\Action\\Context $context',
                 '\\Magento\\Framework\\Registry $coreRegistry',
-                'protected \\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory'],
-            body="""parent::__construct($context, $coreRegistry);""",
+                'protected \\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory',
+                '{}RepositoryInterface $repository'.format(entity_name_capitalized)],
+            body="""$this->resultPageFactory = $resultPageFactory;
+        $this->repository = $repository;
+        parent::__construct($context, $coreRegistry);""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\Registry $coreRegistry',
                 '@param \\Magento\\Framework\\View\\Result\\PageFactory $resultPageFactory',
+                '@param {}RepositoryInterface $repository'.format(entity_name_capitalized)
             ]))
         edit_controller.add_method(Phpmethod('execute',
             body="""// 1. Get ID and create model
                 $id = $this->getRequest()->getParam('{entity_id}');
-                $model = $this->_objectManager->create(\{entity_class}::class);
-
+                
                 // 2. Initial checking
                 if ($id) {{
-                    $model->load($id);
-                    if (!$model->getId()) {{
+                    try {{
+                        $model = $this->repository->get($id);
+                    }} catch (NoSuchEntityException $e) {{
                         $this->messageManager->addErrorMessage(__('This {entity_name} no longer exists.'));
                         /** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                         $resultRedirect = $this->resultRedirectFactory->create();
                         return $resultRedirect->setPath('*/*/');
                     }}
                 }}
+                
+                // Use ObjectManager to create new model for registry if ID is not present or just for registry compatibility
+                // Ideally we should use factory, but keeping consistent with other changes:
+                $model = $this->_objectManager->create(\{entity_class}::class);
+                if ($id) {{
+                    $model->load($id);
+                }}
+
                 $this->_coreRegistry->register('{register_model}', $model);
 
                 // 3. Build edit form
@@ -1272,19 +1314,39 @@ class EavEntitySnippet(Snippet):
         self.add_class(new_controller)
 
         # Save Controller
-        new_controller = Phpclass('Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Save', dependencies=['Magento\Framework\Exception\LocalizedException'], extends='\\Magento\\Backend\\App\\Action',
+        save_controller = Phpclass(
+            'Controller\\Adminhtml\\' + entity_name.replace('_', '') + '\\Save',
+            dependencies=[
+                'Magento\\Framework\\Exception\\LocalizedException',
+                repo_interface,
+                entity_class.class_namespace + 'Factory'
+            ],
+            extends='\\Magento\\Backend\\App\\Action',
             attributes=[
-                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), entity_name)
-            ])
-        new_controller.add_method(Phpmethod('__construct',
-            params=['\\Magento\\Backend\\App\\Action\\Context $context',
-                'protected \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor'],
-            body="""parent::__construct($context);""",
+                "const ADMIN_RESOURCE = '{}::{}';".format('{}_{}'.format(self._module.package, self._module.name), entity_name),
+                'protected $dataPersistor;',
+                'private $repository;',
+                'private $modelFactory;'
+            ]
+        )
+
+        save_controller.add_method(Phpmethod('__construct',
+            params=[
+                '\\Magento\\Backend\\App\\Action\\Context $context',
+                'protected \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor',
+                '{}RepositoryInterface $repository'.format(entity_name_capitalized),
+                '{}Factory $modelFactory'.format(entity_name_capitalized)
+            ],
+            body="""$this->repository = $repository;
+$this->modelFactory = $modelFactory;
+parent::__construct($context);""",
             docstring=[
                 '@param \\Magento\\Backend\\App\\Action\\Context $context',
                 '@param \\Magento\\Framework\\App\\Request\\DataPersistorInterface $dataPersistor',
+                '@param {}RepositoryInterface $repository'.format(entity_name_capitalized),
+                '@param {}Factory $modelFactory'.format(entity_name_capitalized)
             ]))
-        new_controller.add_method(Phpmethod('execute',
+        save_controller.add_method(Phpmethod('execute',
             body="""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     $data = $this->getRequest()->getPostValue();
@@ -1295,16 +1357,21 @@ class EavEntitySnippet(Snippet):
                     
                     $id = $this->getRequest()->getParam('{entity_id}');
 
-                    $model = $this->_objectManager->create(\{entity_class}::class)->load($id);
-                    if (!$model->getId() && $id) {{
-                        $this->messageManager->addErrorMessage(__('This {entity_name} no longer exists.'));
-                        return $resultRedirect->setPath('*/*/');
+                    if ($id) {{
+                        try {{
+                            $model = $this->repository->get($id);
+                        }} catch (NoSuchEntityException $e) {{
+                            $this->messageManager->addErrorMessage(__('This {entity_name} no longer exists.'));
+                            return $resultRedirect->setPath('*/*/');
+                        }}
+                    }} else {{
+                        $model = $this->modelFactory->create();
                     }}
                                 
                     $model->setData($data);
 
                     try {{
-                        $model->save();
+                        $this->repository->save($model);
                         $this->messageManager->addSuccessMessage(__('You saved the {entity_name}.'));
                         $this->dataPersistor->clear('{register_model}');
 
@@ -1331,7 +1398,7 @@ class EavEntitySnippet(Snippet):
                 '@return \Magento\Framework\Controller\ResultInterface',
             ],
             return_type='\\Magento\\Framework\\Controller\\ResultInterface'))
-        self.add_class(new_controller)
+        self.add_class(save_controller)
 
         # Add model provider
         data_provider = Phpclass('Model\\' + entity_name.replace('_', '') + '\\DataProvider', extends='\\Magento\\Ui\\DataProvider\\AbstractDataProvider',
@@ -1612,7 +1679,6 @@ class EavEntitySnippet(Snippet):
                 specifications=" - Eav Entity\n\t- {}".format(entity_name),
             )
         )
-
     def add_web_api(self, entity_name, field_name, entity_table, entity_id, collection_entity_class, entity_class, required, field_element_type, api_repository_class, entity_id_capitalized_after):
 
         resource = '{}_{}::{}_'.format(self._module.package,self._module.name,entity_name);
