@@ -20,6 +20,7 @@ from collections import OrderedDict
 from .. import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, Snippet, SnippetParam, Readme
 from ..utils import upperfirst, lowerfirst
 from ..module import TEMPLATE_DIR
+from ..schema import Table, Constraint, Index
 
 class InterfaceClass(Phpclass):
     template_file = os.path.join(TEMPLATE_DIR,'interface.tmpl')
@@ -73,225 +74,123 @@ class EavEntitySnippet(Snippet):
 
         top_level_menu = extra_params.get('top_level_menu', True)
 
-        # create options
-        required = False
-        attributes = {
-            'xsi:type': "{}".format(field_type),
-            'name': "{}".format(field_name),
-            'nullable': "true"
-        }
-        if extra_params.get('unsigned'):
-            attributes['unsigned'] = 'true'
-            attributes['length'] = '255'
+        # ---------------------------------------------------------
+        # Schema Generation using Abstraction Layer (Refactored)
+        # ---------------------------------------------------------
+        
+        tables = []
 
+        # 1. Main Entity Table
+        main_table = Table(entity_table, comment="{} Table".format(entity_table))
+        main_table.add_column(entity_id, 'int', padding=10, unsigned=True, nullable=False, identity=True, comment="Entity Id")
+        main_table.add_primary_key(entity_id)
+
+        # Main Table Custom Column (e.g., 'title')
+        col_attributes = {'nullable': True}
+        if extra_params.get('unsigned'):
+            col_attributes['unsigned'] = True
+            col_attributes['length'] = '255'
+        
+        main_table.add_column(field_name, field_type, **col_attributes)
+        tables.append(main_table)
+
+        # 2. EAV Value Tables
         for eav_type in ['datetime', 'decimal', 'int', 'text', 'varchar']:
             eav_entity_type_table = "{}_{}".format(entity_table, eav_type)
             eav_entity_type_table_upper = eav_entity_type_table.upper()
-            additionalIndex = []
+            
+            table = Table(eav_entity_type_table, comment="{} Table".format(eav_entity_type_table))
+            
+            # Standard Columns
+            table.add_column('value_id', 'int', padding=11, unsigned=False, nullable=False, identity=True, comment="Value ID")
+            table.add_column('attribute_id', 'smallint', padding=5, unsigned=True, nullable=False, default="0", comment="Attribute ID")
+            table.add_column('entity_id', 'int', padding=10, unsigned=True, nullable=False, default="0", comment="Entity ID")
+            
+            # Value Column
+            # Map EAV type to DB type attributes
+            val_kwargs = {'nullable': eav_type != 'decimal', 'comment': 'Value'}
+            val_db_type = eav_type
+            
+            if eav_type == 'datetime':
+                val_kwargs['on_update'] = False # As per original
+                val_kwargs['nullable'] = False
+            elif eav_type == 'decimal':
+                val_kwargs['scale'] = '4'
+                val_kwargs['precision'] = '12'
+                val_kwargs['unsigned'] = False
+                val_kwargs['nullable'] = False
+                val_kwargs['default'] = '0'
+            elif eav_type == 'int':
+                val_db_type = 'int'
+                val_kwargs['padding'] = 11
+                val_kwargs['unsigned'] = False
+                val_kwargs['nullable'] = False
+                val_kwargs['identity'] = False
+                val_kwargs['default'] = '0'
+            elif eav_type == 'varchar':
+                val_kwargs['length'] = '255'
+            
+            table.add_column('value', val_db_type, **val_kwargs)
+
+            # Constraints
+            table.add_primary_key('value_id')
+
+            # FK: Attribute
+            fk_attr = Constraint(Constraint.FOREIGN, 
+                referenceId="{}_ATTRIBUTE_ID_EAV_ATTRIBUTE_ATTRIBUTE_ID".format(eav_entity_type_table_upper),
+                table=eav_entity_type_table,
+                column='attribute_id',
+                referenceTable='eav_attribute',
+                referenceColumn='attribute_id',
+                onDelete='CASCADE'
+            )
+            fk_attr.add_column('attribute_id')
+            table.add_constraint(fk_attr)
+
+            # FK: Entity
+            fk_entity = Constraint(Constraint.FOREIGN,
+                referenceId="{}_ENTITY_ID_{}_ENTITY_ID".format(eav_entity_type_table_upper, entity_table.upper()),
+                table=eav_entity_type_table,
+                column='entity_id',
+                referenceTable=entity_table,
+                referenceColumn=entity_id,
+                onDelete='CASCADE'
+            )
+            fk_entity.add_column('entity_id')
+            table.add_constraint(fk_entity)
+
+            # Unique Constraint
+            unique = Constraint(Constraint.UNIQUE,
+                referenceId="{}_ENTITY_ID_ATTRIBUTE_ID".format(eav_entity_type_table_upper)
+            )
+            unique.add_column('entity_id')
+            unique.add_column('attribute_id')
+            table.add_constraint(unique)
+
+            # Indexes
+            idx_attr = Index("{}_ATTRIBUTE_ID".format(eav_entity_type_table_upper))
+            idx_attr.add_column('attribute_id')
+            table.add_index(idx_attr)
+
             if eav_type != 'text':
-                additionalIndex += Xmlnode('index', attributes={
-                            'referenceId': "{}_ENTITY_ID_ATTRIBUTE_ID_VALUE".format(eav_entity_type_table_upper),
-                            'indexType': "btree"
-                        }, match_attributes=["referenceId"], nodes=[
-                            Xmlnode('column', attributes={
-                                'name': "entity_id",
-                            }),
-                            Xmlnode('column', attributes={
-                                'name': "attribute_id",
-                            }),
-                            Xmlnode('column', attributes={
-                                'name': "value",
-                            })
-                        ]),
-            self.add_xml('etc/db_schema.xml', Xmlnode('schema', nodes=[
-                Xmlnode('table', attributes={
-                    'name': "{}_{}".format(entity_table, eav_type),
-                    'resource': "default",
-                    'engine': "innodb",
-                    'comment': "{} Table".format(eav_entity_type_table)
-                },  nodes=[
+                idx_val = Index("{}_ENTITY_ID_ATTRIBUTE_ID_VALUE".format(eav_entity_type_table_upper))
+                idx_val.add_column('entity_id')
+                idx_val.add_column('attribute_id')
+                idx_val.add_column('value')
+                table.add_index(idx_val)
 
-                    Xmlnode('column', attributes={
-                        'xsi:type': "int",
-                        'name': "value_id",
-                        'padding': "11",
-                        'unsigned': "false",
-                        'nullable': "false",
-                        'identity': "true",
-                        'comment': "Value ID",
-                    }),
-                    Xmlnode('column', attributes={
-                        'xsi:type': "smallint",
-                        'name': "attribute_id",
-                        'padding': "5",
-                        'unsigned': "true",
-                        'nullable': "false",
-                        'identity': "false",
-                        'default': "0",
-                        'comment': "Attribute ID",
-                    }),
-                    Xmlnode('column', attributes={
-                        'xsi:type': "int",
-                        'name': "entity_id",
-                        'padding': "10",
-                        'unsigned': "true",
-                        'nullable': "false",
-                        'identity': "false",
-                        'default': "0",
-                        'comment': "Entity ID",
-                    }),
-                    Xmlnode('constraint', attributes={
-                        'xsi:type': "primary",
-                        'referenceId': "PRIMARY".format(entity_id)
-                    }, match_attributes=["referenceId"], nodes=[
-                        Xmlnode('column', attributes={
-                            'name': "value_id"
-                        })
-                    ]),
-                    Xmlnode('constraint', attributes={
-                        'xsi:type': "foreign",
-                        'referenceId': "{}_ATTRIBUTE_ID_EAV_ATTRIBUTE_ATTRIBUTE_ID".format(eav_entity_type_table_upper),
-                        'table': eav_entity_type_table,
-                        'column': "attribute_id",
-                        'referenceTable': "eav_attribute",
-                        'referenceColumn': "attribute_id",
-                        'onDelete': "CASCADE",
-                    },match_attributes=["referenceId"]),
-                    Xmlnode('constraint', attributes={
-                        'xsi:type': "foreign",
-                        'referenceId': "{}_ENTITY_ID_{}_ENTITY_ID".format(eav_entity_type_table_upper, entity_table.upper()),
-                        'table': eav_entity_type_table,
-                        'column': "entity_id",
-                        'referenceTable': entity_table,
-                        'referenceColumn': entity_id,
-                        'onDelete': "CASCADE",
-                    }, match_attributes=["referenceId"]),
-                    Xmlnode('constraint', attributes={
-                        'xsi:type': "unique",
-                        'referenceId': "{}_ENTITY_ID_ATTRIBUTE_ID".format(eav_entity_type_table_upper)
-                    }, match_attributes=["referenceId"], nodes=[
-                        Xmlnode('column', attributes={
-                            'name': "entity_id",
-                        }),
-                        Xmlnode('column', attributes={
-                            'name': "attribute_id",
-                        })
-                    ]),
-                    Xmlnode('index', attributes={
-                        'referenceId': "{}_ATTRIBUTE_ID".format(eav_entity_type_table_upper),
-                        'indexType': "btree"
-                    }, match_attributes=["referenceId"], nodes=[
-                        Xmlnode('column', attributes={
-                            'name': "attribute_id",
-                        })
-                    ]),
-                    ] +
-                    additionalIndex
-                )
-            ]))
+            tables.append(table)
 
-        # update db_schema.xml preferences
-        self.add_xml('etc/db_schema.xml', Xmlnode('schema', attributes={
-            'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd"}, nodes=[
-            Xmlnode('table', attributes={
-                'name': "{}".format(entity_table),
-                'resource': "default",
-                'engine': "innodb",
-                'comment': "{} Table".format(entity_table)
-            }, match_attributes=["name"], nodes=[
-                Xmlnode('column', attributes={
-                    'xsi:type': "{}".format('int'),
-                    'name': entity_id,
-                    'padding': "{}".format('10'),
-                    'unsigned': "{}".format('true'),
-                    'nullable': "{}".format('false'),
-                    'identity': "{}".format('true'),
-                    'comment': "{}".format('Entity Id')
-                }),
-                Xmlnode('constraint', attributes={
-                    'xsi:type': "primary",
-                    'referenceId': "PRIMARY".format(entity_id)
-                }, match_attributes=["referenceId"], nodes=[
-                    Xmlnode('column', attributes={
-                        'name': entity_id
-                    })
-                ]),
-                Xmlnode('column', attributes=attributes)
-            ]),
-            Xmlnode('table', attributes={
-                'name': "{}_datetime".format(entity_table),
-                'resource': "default",
-                'engine': "innodb",
-                'comment': "{} Datetime Table".format(entity_table)
-            }, match_attributes=["name"], nodes=
-                [
-                    Xmlnode('column', attributes={
-                        'xsi:type': "datetime",
-                        'name': "value",
-                        'on_update': "false",
-                        'nullable': "false",
-                        'comment': "Value",
-                    })
-                ]
-            ),
-            Xmlnode('table', attributes={
-                'name': "{}_decimal".format(entity_table),
-            }, match_attributes=["name"], nodes=
-                [
-                    Xmlnode('column', attributes={
-                        'xsi:type': "decimal",
-                        'name': "value",
-                        'scale': "4",
-                        'precision': "12",
-                        'unsigned': "false",
-                        'nullable': "false",
-                        'default': "0",
-                        'comment': "Value",
-                    })
-                ]
-            ),
-            Xmlnode('table', attributes={
-                'name': "{}_int".format(entity_table),
-            }, match_attributes=["name"], nodes=
-                    [
-                        Xmlnode('column', attributes={
-                            'xsi:type': "int",
-                            'name': "value",
-                            'padding': "11",
-                            'unsigned': "false",
-                            'nullable': "false",
-                            'identity': "false",
-                            'default': "0",
-                            'comment': "Value",
-                        })
-                    ]
-            ),
-            Xmlnode('table', attributes={
-                'name': "{}_text".format(entity_table),
-            }, match_attributes=["name"], nodes=
-                    [
-                        Xmlnode('column', attributes={
-                            'xsi:type': "text",
-                            'name': "value",
-                            'nullable': "true",
-                            'comment': "Value",
-                        })
-                    ]
-            ),
-            Xmlnode('table', attributes={
-                'name': "{}_varchar".format(entity_table),
-            }, match_attributes=["name"], nodes=
-                    [
-                        Xmlnode('column', attributes={
-                            'xsi:type': "varchar",
-                            'name': "value",
-                            'nullable': "true",
-                            'length': "255",
-                            'comment': "Value",
-                        })
-                    ]
-            ),
-        ]))
+        # Generate the XML
+        schema_nodes = [t.to_xml_node() for t in tables]
+        self.add_xml('etc/db_schema.xml', Xmlnode('schema', 
+            attributes={'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd"},
+            nodes=schema_nodes
+        ))
+
+        # ---------------------------------------------------------
+        # End Schema Generation
+        # ---------------------------------------------------------
 
         # Create resource class
         resource_entity_class = Phpclass('Model\\ResourceModel\\' + entity_name_capitalized.replace('_', '\\'), extends='\\Magento\\Eav\\Model\\Entity\\AbstractEntity')

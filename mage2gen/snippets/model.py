@@ -7,6 +7,7 @@ from collections import OrderedDict
 from .. import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, Snippet, SnippetParam, Readme
 from ..utils import upperfirst, lowerfirst
 from ..module import TEMPLATE_DIR
+from ..types import get_php_type, get_php_doc_type
 
 class InterfaceClass(Phpclass):
     template_file = os.path.join(TEMPLATE_DIR, 'interface.tmpl')
@@ -43,23 +44,6 @@ class ModelSnippet(Snippet):
         ('blob', 'Blob'),
         ('varchar', 'Varchar')
     ]
-
-    # Mapping SQL types to PHP types for Strict Typing
-    PHP_TYPE_MAP = {
-        'boolean': 'bool',
-        'smallint': 'int',
-        'integer': 'int',
-        'bigint': 'int',
-        'float': 'float',
-        'numeric': 'float',
-        'decimal': 'float',
-        'text': 'string',
-        'varchar': 'string',
-        'blob': 'string',
-        'date': 'string',
-        'datetime': 'string',
-        'timestamp': 'string'
-    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -98,17 +82,18 @@ class ModelSnippet(Snippet):
             model_name_capitalized.replace('_', '\\')
         )
 
-        # Determine PHP Type
-        php_type = self.PHP_TYPE_MAP.get(field_type, 'string')
+        # Determine Types using the new type system
+        # Check nullability
+        required = True
+        if extra_params.get('nullable'):
+            required = False
         
-        # Determine if Nullable
-        is_nullable = True
-        if not extra_params.get('nullable'):
-            is_nullable = False
-
-        # Format Type Hint (e.g., ?int or int)
-        php_type_hint = "?{}".format(php_type) if is_nullable else php_type
-        php_doc_type = "{}|null".format(php_type) if is_nullable else php_type
+        php_type = get_php_type(field_type, required=required)
+        php_doc_type = get_php_doc_type(field_type, required=required)
+        
+        # ID is typically nullable on Get (new object) but strict int on Set
+        id_php_type = '?int'
+        id_doc_type = 'int|null'
 
         if field_type == 'boolean':
             field_element_type = 'checkbox'
@@ -132,7 +117,6 @@ class ModelSnippet(Snippet):
         }))
 
         # create options
-        required = False
         attributes = {
             'name': "{}".format(field_name),
             'nullable': "true",
@@ -152,7 +136,6 @@ class ModelSnippet(Snippet):
             attributes['default'] = "{}".format(extra_params.get('default'))
         if not extra_params.get('nullable'):
             attributes['nullable'] = 'false'
-            required = not attributes['nullable']
         if field_type in {'smallint', 'integer', 'bigint'}:
             attributes['identity'] = 'false'
             if extra_params.get('identity'):
@@ -270,9 +253,9 @@ class ModelSnippet(Snippet):
             'get' + model_id_capitalized,
             docstring=[
                 'Get {}'.format(model_id),
-                '@return int|null'
+                '@return {}'.format(id_doc_type)
             ],
-            return_type='?int'
+            return_type=id_php_type
         ))
 
         api_data_class.add_method(InterfaceMethod(
@@ -292,15 +275,15 @@ class ModelSnippet(Snippet):
                 'Get {}'.format(field_name),
                 '@return {}'.format(php_doc_type)
             ],
-            return_type=php_type_hint
+            return_type=php_type
         ))
 
         api_data_class.add_method(InterfaceMethod(
             'set' + field_name_capitalized,
-            params=['{} ${}'.format(php_type_hint, lowerfirst(field_name_capitalized))],
+            params=['{} ${}'.format(php_type, lowerfirst(field_name_capitalized))],
             docstring=[
                 'Set {}'.format(field_name),
-                '@param {} ${}'.format(php_type_hint, lowerfirst(field_name_capitalized)),
+                '@param {} ${}'.format(php_doc_type, lowerfirst(field_name_capitalized)),
                 '@return \\{}'.format(api_data_class.class_namespace)
             ],
             return_type='\\{}'.format(api_data_class.class_namespace)
@@ -341,9 +324,9 @@ class ModelSnippet(Snippet):
 
         model_class.add_method(Phpmethod('get' + model_id_capitalized,
             docstring=['@inheritDoc'],
-            body="""return (int) $this->getData({});
-            """.format('self::' + model_id.upper()),
-            return_type='?int'
+            body="""$id = $this->getData({});
+            return $id === null ? null : (int)$id;""".format('self::' + model_id.upper()),
+            return_type=id_php_type
         ))
 
         model_class.add_method(Phpmethod('set' + model_id_capitalized,
@@ -354,15 +337,30 @@ class ModelSnippet(Snippet):
             return_type='\\{}'.format(api_data_class.class_namespace)
         ))
 
+        # Generate Safe Cast logic for the Getter
+        cast_type = php_type.replace('?', '')
+        if '?' in php_type:
+            # Nullable: check for null before cast
+            getter_body = """$value = $this->getData({const});
+            return $value === null ? null : ({cast})$value;""".format(
+                const='self::' + field_name.upper(),
+                cast=cast_type
+            )
+        else:
+            # Strict: always cast
+            getter_body = """return ({cast}) $this->getData({const});""".format(
+                const='self::' + field_name.upper(),
+                cast=cast_type
+            )
+
         model_class.add_method(Phpmethod('get' + field_name_capitalized,
             docstring=['@inheritDoc'],
-            body="""return $this->getData({});
-            """.format('self::' + field_name.upper()),
-            return_type=php_type_hint
+            body=getter_body,
+            return_type=php_type
         ))
 
         model_class.add_method(Phpmethod('set' + field_name_capitalized,
-            params=['{} ${}'.format(php_type_hint, lowerfirst(field_name_capitalized))],
+            params=['{} ${}'.format(php_type, lowerfirst(field_name_capitalized))],
             docstring=['@inheritDoc'],
             body="""return $this->setData({}, ${});
             """.format('self::' + field_name.upper(), lowerfirst(field_name_capitalized)),
@@ -439,7 +437,7 @@ class ModelSnippet(Snippet):
         ))
         model_repository_class.add_method(Phpmethod('save', access=Phpmethod.PUBLIC,
             params=['{}Interface ${}'.format(model_name_capitalized, model_name_capitalized_after)],
-            body="""try {{
+            body=r"""try {{
                         $this->resource->save(${variable});
                     }} catch (\Exception $exception) {{
                         throw new CouldNotSaveException(__(
@@ -484,7 +482,7 @@ class ModelSnippet(Snippet):
         ))
         model_repository_class.add_method(Phpmethod('delete', access=Phpmethod.PUBLIC,
             params=['{}Interface ${}'.format(model_name_capitalized, model_name_capitalized_after)],
-            body="""try {{
+            body=r"""try {{
                             ${variable}Model = $this->{variable}Factory->create();
                             $this->resource->load(${variable}Model, ${variable}->get{model_id}());
                             $this->resource->delete(${variable}Model);
@@ -926,7 +924,7 @@ parent::__construct($context, $coreRegistry);""",
             ]
         ))
         delete_controller.add_method(Phpmethod('execute',
-            body="""/** @var \\Magento\\Backend\\Model\\View\\Result\\Redirect $resultRedirect */
+            body=r"""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     // check if we know what should be deleted
                     $id = $this->getRequest()->getParam('{model_id}');
@@ -992,7 +990,7 @@ parent::__construct($context, $coreRegistry);""",
                 '@param {}Factory $modelFactory'.format(model_name_capitalized)
             ]))
         edit_controller.add_method(Phpmethod('execute',
-            body="""// 1. Get ID and create model
+            body=r"""// 1. Get ID and create model
                 $id = $this->getRequest()->getParam('{model_id}');
                 $model = $this->modelFactory->create();
                 
@@ -1055,7 +1053,7 @@ $this->repository = $repository;""",
                 '@param {}RepositoryInterface $repository'.format(model_name_capitalized)
             ]))
         inline_edit_controller.add_method(Phpmethod('execute',
-            body="""/** @var \\Magento\\Framework\\Controller\\Result\\Json $resultJson */
+            body=r"""/** @var \Magento\Framework\Controller\Result\Json $resultJson */
                     $resultJson = $this->jsonFactory->create();
                     $error = false;
                     $messages = [];
@@ -1116,7 +1114,7 @@ $this->repository = $repository;""",
                 '@param \\Magento\\Backend\\Model\\View\\Result\\ForwardFactory $resultForwardFactory',
             ]))
         new_controller.add_method(Phpmethod('execute',
-            body="""/** @var \Magento\Framework\Controller\Result\Forward $resultForward */
+            body=r"""/** @var \Magento\Framework\Controller\Result\Forward $resultForward */
                     $resultForward = $this->resultForwardFactory->create();
                     return $resultForward->forward('edit');""",
             docstring=[
@@ -1161,7 +1159,7 @@ parent::__construct($context);""",
                 '@param {}Factory $modelFactory'.format(model_name_capitalized),
             ]))
         save_controller.add_method(Phpmethod('execute',
-            body="""/** @var \\Magento\\Backend\\Model\\View\\Result\\Redirect $resultRedirect */
+            body=r"""/** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
                     $resultRedirect = $this->resultRedirectFactory->create();
                     $data = $this->getRequest()->getPostValue();
                     
