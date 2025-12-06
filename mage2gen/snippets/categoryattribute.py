@@ -41,7 +41,7 @@ class CategoryAttributeSnippet(Snippet):
             'unique': 'false',
             'apply_to': ''
         })
-        self.add_static_file(f"Setup/Patch/Data/{class_name}", StaticFile(f"{class_name}.php", body=content))
+        self.add_static_file("Setup/Patch/Data", StaticFile(f"{class_name}.php", body=content))
         
         # UI Component Form
         form_config = Xmlnode('form', attributes={'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance'}, nodes=[

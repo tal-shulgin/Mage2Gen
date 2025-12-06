@@ -21,7 +21,7 @@ class LoggerSnippet(Snippet):
             'namespace': ns_logger,
             'class_name': logger_name
         })
-        self.add_static_file(f"Logger/{logger_name}", StaticFile(f"{logger_name}.php", body=c_logger))
+        self.add_static_file("Logger", StaticFile(f"{logger_name}.php", body=c_logger))
 
         # Handler Class
         c_handler = TemplateEngine.render('snippets/logger/handler.j2', {
@@ -29,7 +29,7 @@ class LoggerSnippet(Snippet):
             'class_name': handler_name,
             'file_name': filename
         })
-        self.add_static_file(f"Logger/Handler/{handler_name}", StaticFile(f"{handler_name}.php", body=c_handler))
+        self.add_static_file("Logger/Handler", StaticFile(f"{handler_name}.php", body=c_handler))
 
         # DI XML
         config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[

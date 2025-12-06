@@ -6,12 +6,9 @@ class ConsoleSnippet(Snippet):
     snippet_label = 'Console Command'
     description = "Create a bin/magento console command."
 
-    def add(self, name, description="Sample command"):
+    def add(self, name, description="Sample command", **kwargs):
         package = self._module.package
         module = self._module.name
-        
-        # Class Name: Vendor\Module\Console\Command\Name
-        # Command Name: vendor:module:name (if simple name provided)
         
         if ':' in name:
             command_name = name
@@ -29,7 +26,7 @@ class ConsoleSnippet(Snippet):
             'command_name': command_name,
             'description': description
         })
-        self.add_static_file(f"Console/Command/{class_name}.php", StaticFile(f"{class_name}.php", body=content))
+        self.add_static_file("Console/Command", StaticFile(f"{class_name}.php", body=content))
 
         # DI XML
         config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[

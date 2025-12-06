@@ -20,7 +20,7 @@ class BlockSnippet(Snippet):
             'namespace': namespace,
             'class_name': block_name
         })
-        self.add_static_file(f"Block/{block_name}", StaticFile(f"{block_name}.php", body=content))
+        self.add_static_file("Block", StaticFile(f"{block_name}.php", body=content))
 
         # 2. Generate PHTML Template
         template_file = f"{name.lower()}.phtml"
@@ -30,7 +30,7 @@ class BlockSnippet(Snippet):
             'block_var': 'block',
             'block_class': block_class_full
         })
-        self.add_static_file(f"view/frontend/templates/{template_file}", StaticFile(template_file, body=phtml_content))
+        self.add_static_file("view/frontend/templates", StaticFile(template_file, body=phtml_content))
 
         # 3. Generate Layout XML
         page = Xmlnode('page', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:View/Layout/etc/page_configuration.xsd"}, nodes=[

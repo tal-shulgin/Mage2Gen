@@ -8,11 +8,7 @@ class ControllerSnippet(Snippet):
     description = "Create a Controller Action and Route."
 
     def add(self, frontname=None, section='index', action='index', adminhtml=False, **kwargs):
-        # Support legacy 'admin' kwarg from tests if present
-        if 'admin' in kwargs:
-            adminhtml = kwargs['admin']
-        
-        # Legacy map
+        if 'admin' in kwargs: adminhtml = kwargs['admin']
         admin = adminhtml 
         
         package = self._module.package
@@ -41,7 +37,7 @@ class ControllerSnippet(Snippet):
         path_parts.append(upperfirst(section))
         path = "/".join(path_parts)
         
-        self.add_static_file(f"{path}/{class_name}", StaticFile(f"{class_name}.php", body=content))
+        self.add_static_file(path, StaticFile(f"{class_name}.php", body=content))
 
         # 2. Generate Routes XML
         area = "adminhtml" if admin else "frontend"

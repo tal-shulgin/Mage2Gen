@@ -25,7 +25,7 @@ class PluginSnippet(Snippet):
             'method_name': method,
             'type': type
         })
-        self.add_static_file(f"Plugin/{plugin_name}", StaticFile(f"{plugin_name}.php", body=content))
+        self.add_static_file("Plugin", StaticFile(f"{plugin_name}.php", body=content))
 
         # 2. Generate DI XML
         config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[

@@ -311,5 +311,25 @@ def system(
     SystemSnippet(mod).add(tab, section, group, field, field_type=type, default_value=default, create_tab=create_tab, source_model_options=source_model_options)
     mod.generate_module(output_dir)
 
+@app.command("admin-crud")
+def admin_crud(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    name: str = typer.Option(..., help="Entity Name"),
+    fields: str = typer.Option("", help="Fields (name:type)"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    """
+    [Feature] Generates a full Admin CRUD (Model + Grid + Controllers).
+    """
+    from mage2gen import Module
+    from mage2gen.features.admin_crud import AdminCrudFeature
+    
+    mod = Module(package, module)
+    feature = AdminCrudFeature(mod)
+    feature.add(name=name, fields=fields)
+    
+    mod.generate_module(output_dir)
+
 if __name__ == "__main__":
     app()

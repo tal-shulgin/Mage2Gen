@@ -32,7 +32,7 @@ class CustomerAttributeSnippet(Snippet):
             'backend': '',
             'required': 'false',
             'sort_order': 100,
-            'scope': '\Magento\Eav\Model\Entity\Attribute\ScopedAttributeInterface::SCOPE_GLOBAL',
+            'scope': r'\Magento\Eav\Model\Entity\Attribute\ScopedAttributeInterface::SCOPE_GLOBAL',
             'default': 'null',
             'searchable': 'false',
             'filterable': 'false',
@@ -41,5 +41,5 @@ class CustomerAttributeSnippet(Snippet):
             'unique': 'false',
             'apply_to': ''
         })
-        self.add_static_file(f"Setup/Patch/Data/{class_name}", StaticFile(f"{class_name}.php", body=content))
+        self.add_static_file("Setup/Patch/Data", StaticFile(f"{class_name}.php", body=content))
         self.add_static_file('.', Readme(specifications=f" - Customer Attribute: {code}"))

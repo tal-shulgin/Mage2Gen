@@ -57,7 +57,7 @@ class ProductAttributeSnippet(Snippet):
             'apply_to': ''
         })
         
-        self.add_static_file(f"Setup/Patch/Data/{class_name}", StaticFile(f"{class_name}.php", body=content))
+        self.add_static_file("Setup/Patch/Data", StaticFile(f"{class_name}.php", body=content))
         
         # Add Module Sequence
         config = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Module/etc/module.xsd"}, nodes=[

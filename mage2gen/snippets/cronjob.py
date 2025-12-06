@@ -17,7 +17,7 @@ class CronjobSnippet(Snippet):
             'namespace': namespace,
             'class_name': class_name
         })
-        self.add_static_file(f"Cron/{class_name}", StaticFile(f"{class_name}.php", body=content))
+        self.add_static_file("Cron", StaticFile(f"{class_name}.php", body=content))
 
         # XML
         job_name = f"{package.lower()}_{module.lower()}_{name.lower()}"

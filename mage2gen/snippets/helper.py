@@ -16,5 +16,5 @@ class HelperSnippet(Snippet):
             'namespace': namespace,
             'class_name': class_name
         })
-        self.add_static_file(f"Helper/{class_name}", StaticFile(f"{class_name}.php", body=content))
+        self.add_static_file("Helper", StaticFile(f"{class_name}.php", body=content))
         self.add_static_file('.', Readme(specifications=f" - Helper: {class_name}"))

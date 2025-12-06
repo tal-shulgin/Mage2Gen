@@ -1,0 +1,28 @@
+<file path="mage2gen/templates/snippets/attribute/source_model.j2">
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Eav\Model\Entity\Attribute\Source\AbstractSource;
+
+class {{ class_name }} extends AbstractSource
+{
+    /**
+     * getAllOptions
+     *
+     * @return array
+     */
+    public function getAllOptions()
+    {
+        if ($this->_options === null) {
+            $this->_options = [
+                {% for option in options %}
+                ['value' => '{{ option.value }}', 'label' => __('{{ option.label }}')],
+                {% endfor %}
+            ];
+        }
+        return $this->_options;
+    }
+}
+</file>
