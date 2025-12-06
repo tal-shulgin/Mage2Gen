@@ -8,6 +8,7 @@ from xml.etree.ElementTree import Element, SubElement, tostring, ElementTree
 from xml.dom import minidom
 
 from .utils import upperfirst
+from .core.template import TemplateEngine
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 
@@ -15,7 +16,7 @@ TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 # PHP Class
 ###############################################################################
 class Phpclass:
-    template_file = os.path.join(TEMPLATE_DIR, 'class.tmpl')
+    template_file = os.path.join(TEMPLATE_DIR, 'class.j2')
 
     def __init__(self, class_namespace, extends=None, implements=None, attributes=None, dependencies=None, abstract=False):
         self.class_namespace = self.upper_class_namespace(class_namespace)
@@ -92,12 +93,15 @@ class Phpclass:
         }
 
     def generate(self):
-        with open(self.template_file, 'rb') as tmpl:
-            template = tmpl.read().decode('utf-8')
+        # OLD CODE (Commented out/Removed)
+        # with open(self.template_file, 'rb') as tmpl:
+        #     template = tmpl.read().decode('utf-8')
+        # return template.format(**self.context_data()).replace('\t', '    ')
 
-        return template.format(
-            **self.context_data()
-        ).replace('\t', '    ')
+        # NEW CODE (Jinja2)
+        # We need to use class.j2. 
+        # Since we converted class.tmpl to class.j2, we can just point to it.
+        return TemplateEngine.render('class.j2', self.context_data())
 
     def save(self, root_location):
         path = os.path.join(root_location, self.class_namespace.replace('\\', '/') + '.php')
@@ -193,20 +197,14 @@ class Phpmethod:
         return '\n\n'.join(processed_body)
 
     def generate(self):
-        with open(self.template_file, 'rb') as tmpl:
-            template = tmpl.read().decode('utf-8')
-
-        return template.format(
-            method=self.name,
-            access=self.access,
-            docstring=self.docstring_code(),
-            params=self.params_code(),
-            return_type=self.return_type_code(),
-            body=self.body_code(),
-            # If params are multiline, we don't need extra space before bracket, otherwise we do?
-            # Actually standard is `function foo(...) : type\n{`
-            brace_break=''
-        ).replace('\t', '    ')
+        return TemplateEngine.render('method.j2', {
+            'method': self.name,
+            'access': self.access,
+            'docstring': self.docstring_code(),
+            'params': self.params_code(),
+            'return_type': self.return_type_code(),
+            'body': self.body_code()
+        }).replace('\t', '    ')
 
 ###############################################################################
 # XML
@@ -284,9 +282,11 @@ class Xmlnode:
 # StaticFile
 ###############################################################################
 class StaticFile:
-    def __init__(self, file_name, body=None, template_file='staticfile.tmpl', context_data=None):
+    def __init__(self, file_name, body=None, template_file=None, context_data=None):
         self.file_name = file_name
-        self.template_file = os.path.join(TEMPLATE_DIR, template_file)
+        # If template_file ends with .tmpl, we might want to warn or auto-switch
+        # For v3, we assume new code passes .j2
+        self.template_file = template_file
         self._context_data = context_data if context_data else {}
         self._context_data['body'] = [body] if body else []
 
@@ -302,9 +302,10 @@ class StaticFile:
         return self._context_data
 
     def generate(self):
-        with open(self.template_file, 'rb') as tmpl:
-            template = tmpl.read().decode('utf-8')
-        return template.format(**self.context_data())
+        if self.template_file:
+            return TemplateEngine.render(self.template_file, self.context_data())
+        
+        return "\n\n".join(self._context_data['body'])
 
     def save(self, file_path):
         try:
@@ -541,8 +542,8 @@ class Module:
             self.add_static_file('', StaticFile('LICENSE.txt', body=self.license.get_text()))
             self.add_static_file('', StaticFile('COPYING.txt', body=self.license.get_short_text()))
             context_data = {'module_name': self.module_name, 'license': self.license.get_php_docstring()}
-        self.add_static_file('.', StaticFile('registration.php', template_file='registration.tmpl',context_data=context_data))
-        self.add_static_file('', StaticFile('composer.json', body=json.dumps(self._composer, indent=4)))
+        registration_content = TemplateEngine.render('registration.j2', context_data)
+        self.add_static_file('.', StaticFile('registration.php', body=registration_content))
         for class_name, phpclass in self._classes.items():
             phpclass.save(root_location)
         for graphqlschema_file, graphqlobjecttype in self._graphqlschemas.items():
