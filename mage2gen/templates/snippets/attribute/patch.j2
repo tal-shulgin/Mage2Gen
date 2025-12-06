@@ -1,0 +1,98 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Eav\Setup\EavSetup;
+use Magento\Eav\Setup\EavSetupFactory;
+use Magento\Framework\Setup\ModuleDataSetupInterface;
+use Magento\Framework\Setup\Patch\DataPatchInterface;
+use Magento\Framework\Setup\Patch\PatchRevertableInterface;
+
+class {{ class_name }} implements DataPatchInterface, PatchRevertableInterface
+{
+    /**
+     * @var ModuleDataSetupInterface
+     */
+    private $moduleDataSetup;
+
+    /**
+     * @var EavSetupFactory
+     */
+    private $eavSetupFactory;
+
+    /**
+     * Constructor
+     *
+     * @param ModuleDataSetupInterface $moduleDataSetup
+     * @param EavSetupFactory $eavSetupFactory
+     */
+    public function __construct(
+        ModuleDataSetupInterface $moduleDataSetup,
+        EavSetupFactory $eavSetupFactory
+    ) {
+        $this->moduleDataSetup = $moduleDataSetup;
+        $this->eavSetupFactory = $eavSetupFactory;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function apply()
+    {
+        $this->moduleDataSetup->getConnection()->startSetup();
+        /** @var EavSetup $eavSetup */
+        $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
+
+        $eavSetup->addAttribute(
+            \{{ entity_type_const }},
+            '{{ attribute_code }}',
+            [
+                'type' => '{{ type }}',
+                'label' => '{{ label }}',
+                'input' => '{{ input }}',
+                'source' => '{{ source }}',
+                'frontend' => '{{ frontend }}',
+                'backend' => '{{ backend }}',
+                'required' => {{ required }},
+                'sort_order' => {{ sort_order }},
+                'global' => {{ scope }},
+                'default' => {{ default }},
+                'visible' => true,
+                'user_defined' => true,
+                'searchable' => {{ searchable }},
+                'filterable' => {{ filterable }},
+                'comparable' => {{ comparable }},
+                'visible_on_front' => {{ visible_on_front }},
+                'unique' => {{ unique }},
+                'apply_to' => '{{ apply_to }}',
+                'group' => 'General',
+                'is_used_in_grid' => true,
+                'is_visible_in_grid' => false,
+                'is_filterable_in_grid' => false,
+                'option' => {{ option|default('[]') }}
+            ]
+        );
+
+        $this->moduleDataSetup->getConnection()->endSetup();
+    }
+
+    public function revert()
+    {
+        $this->moduleDataSetup->getConnection()->startSetup();
+        /** @var EavSetup $eavSetup */
+        $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
+        $eavSetup->removeAttribute(\{{ entity_type_const }}, '{{ attribute_code }}');
+        $this->moduleDataSetup->getConnection()->endSetup();
+    }
+
+    public function getDependencies()
+    {
+        return [];
+    }
+
+    public function getAliases()
+    {
+        return [];
+    }
+}

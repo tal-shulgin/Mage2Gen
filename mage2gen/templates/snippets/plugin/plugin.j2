@@ -1,0 +1,51 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+class {{ class_name }}
+{
+{% if type == 'before' %}
+    /**
+     * @param \{{ subject_class }} $subject
+     * @param mixed ...$args
+     * @return array
+     */
+    public function before{{ method_name|capitalize }}(
+        \{{ subject_class }} $subject,
+        ...$args
+    ) {
+        // Your code here
+        return $args;
+    }
+{% elif type == 'after' %}
+    /**
+     * @param \{{ subject_class }} $subject
+     * @param mixed $result
+     * @return mixed
+     */
+    public function after{{ method_name|capitalize }}(
+        \{{ subject_class }} $subject,
+        $result
+    ) {
+        // Your code here
+        return $result;
+    }
+{% elif type == 'around' %}
+    /**
+     * @param \{{ subject_class }} $subject
+     * @param callable $proceed
+     * @param mixed ...$args
+     * @return mixed
+     */
+    public function around{{ method_name|capitalize }}(
+        \{{ subject_class }} $subject,
+        callable $proceed,
+        ...$args
+    ) {
+        // Your code here
+        $result = $proceed(...$args);
+        return $result;
+    }
+{% endif %}
+}

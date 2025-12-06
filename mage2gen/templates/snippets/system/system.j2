@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        {% if tab %}
+        <tab id="{{ tab.id }}" translate="label" sortOrder="{{ tab.sortOrder }}">
+            <label>{{ tab.label }}</label>
+        </tab>
+        {% endif %}
+        <section id="{{ section.id }}" translate="label" sortOrder="{{ section.sortOrder }}" showInDefault="{{ section.showInDefault }}" showInWebsite="{{ section.showInWebsite }}" showInStore="{{ section.showInStore }}">
+            <label>{{ section.label }}</label>
+            <tab>{{ tab.id }}</tab>
+            <resource>{{ resource }}</resource>
+            <group id="{{ group.id }}" translate="label" sortOrder="{{ group.sortOrder }}" showInDefault="{{ group.showInDefault }}" showInWebsite="{{ group.showInWebsite }}" showInStore="{{ group.showInStore }}">
+                <label>{{ group.label }}</label>
+                <field id="{{ field.id }}" translate="label" type="{{ field.type }}" sortOrder="{{ field.sortOrder }}" showInDefault="{{ field.showInDefault }}" showInWebsite="{{ field.showInWebsite }}" showInStore="{{ field.showInStore }}">
+                    <label>{{ field.label }}</label>
+                    {% if field.comment %}<comment>{{ field.comment }}</comment>{% endif %}
+                    {% if field.source_model %}<source_model>{{ field.source_model }}</source_model>{% endif %}
+                    {% if field.backend_model %}<backend_model>{{ field.backend_model }}</backend_model>{% endif %}
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

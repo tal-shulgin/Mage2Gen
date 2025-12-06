@@ -12,14 +12,13 @@ class TestSnippetSystem(unittest.TestCase):
 		module = Module(package='Package', name='Name', description='Description')
 		snippet = SystemSnippet(module)
 		sample_output = snippet.add(
-			tab='test', 
-			section='test', 
-			group='test', 
-			field='test', 
-			field_type='select', 
-			new_tab=False, 
-			source_model='custom', 
-			source_model_options='value1, value2, value3')
+            tab='test', 
+            section='test', 
+            group='test', 
+            field='test', 
+            field_type='select', 
+            source_model_options='value1, value2, value3',
+            create_tab=False)
 
 		result = utils.CodeSniffer.generate_and_test(module)
 		self.assertTrue(result)

@@ -1,81 +1,52 @@
-# A Magento 2 module generator library
-# Copyright (C) 2025 Mage2Gen
-import os
-from .. import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, Snippet, SnippetParam, Readme
+from .. import Snippet, StaticFile, Readme, Xmlnode
+from ..core.template import TemplateEngine
+from ..utils import upperfirst
 
 class LoggerSnippet(Snippet):
     snippet_label = 'Logger'
-    description = """
-    Create a custom logger handler and logger class to log data to a specific file.
-    """
+    description = "Create a custom Logger and Handler."
 
-    def add(self, logger_name, file_name='custom.log', extra_params=None):
-        logger_name_capitalized = logger_name.capitalize()
+    def add(self, name, filename="custom.log", **kwargs):
+        package = self._module.package
+        module = self._module.name
         
-        # 1. Create Logger Class
-        logger_class = Phpclass(
-            'Logger\\{}'.format(logger_name_capitalized),
-            extends='\\Monolog\\Logger'
-        )
-        self.add_class(logger_class)
+        logger_name = upperfirst(name)
+        handler_name = f"{logger_name}Handler"
+        
+        ns_logger = f"{package}\\{module}\\Logger"
+        ns_handler = f"{package}\\{module}\\Logger\\Handler"
 
-        # 2. Create Handler Class
-        handler_class = Phpclass(
-            'Logger\\Handler\\{}'.format(logger_name_capitalized),
-            extends='\\Magento\\Framework\\Logger\\Handler\\Base',
-            attributes=[
-                '/**\n     * @var int\n     */\n    protected $loggerType = Logger::INFO;',
-                '/**\n     * @var string\n     */\n    protected $fileName = \'/var/log/{}\';'.format(file_name)
-            ],
-            dependencies=['Monolog\\Logger']
-        )
-        self.add_class(handler_class)
+        # Logger Class
+        c_logger = TemplateEngine.render('snippets/logger/logger.j2', {
+            'namespace': ns_logger,
+            'class_name': logger_name
+        })
+        self.add_static_file(f"Logger/{logger_name}", StaticFile(f"{logger_name}.php", body=c_logger))
 
-        # 3. Create di.xml configuration
-        di_xml = Xmlnode('config', attributes={
-            'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'xsi:noNamespaceSchemaLocation': "urn:magento:framework:ObjectManager/etc/config.xsd"
-        }, nodes=[
-            Xmlnode('type', attributes={'name': handler_class.class_namespace}, nodes=[
+        # Handler Class
+        c_handler = TemplateEngine.render('snippets/logger/handler.j2', {
+            'namespace': ns_handler,
+            'class_name': handler_name,
+            'file_name': filename
+        })
+        self.add_static_file(f"Logger/Handler/{handler_name}", StaticFile(f"{handler_name}.php", body=c_handler))
+
+        # DI XML
+        config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[
+            Xmlnode('type', attributes={'name': f"{ns_handler}\\{handler_name}"}, nodes=[
                 Xmlnode('arguments', nodes=[
                     Xmlnode('argument', attributes={'name': 'filesystem', 'xsi:type': 'object'}, node_text='Magento\\Framework\\Filesystem\\Driver\\File')
                 ])
             ]),
-            Xmlnode('type', attributes={'name': logger_class.class_namespace}, nodes=[
+            Xmlnode('type', attributes={'name': f"{ns_logger}\\{logger_name}"}, nodes=[
                 Xmlnode('arguments', nodes=[
-                    Xmlnode('argument', attributes={'name': 'name', 'xsi:type': 'string'}, node_text=logger_name),
+                    Xmlnode('argument', attributes={'name': 'name', 'xsi:type': 'string'}, node_text=name.lower()),
                     Xmlnode('argument', attributes={'name': 'handlers', 'xsi:type': 'array'}, nodes=[
-                        Xmlnode('item', attributes={'name': 'system', 'xsi:type': 'object'}, node_text=handler_class.class_namespace)
+                        Xmlnode('item', attributes={'name': 'system', 'xsi:type': 'object'}, node_text=f"{ns_handler}\\{handler_name}")
                     ])
                 ])
             ])
         ])
+        self.add_xml('etc/di.xml', config)
 
-        self.add_xml('etc/di.xml', di_xml)
-
-        self.add_static_file(
-            '.',
-            Readme(
-                specifications=" - Custom Logger\n\t- {} -> var/log/{}".format(logger_class.class_namespace, file_name),
-            )
-        )
-
-    @classmethod
-    def params(cls):
-        return [
-            SnippetParam(
-                name='logger_name',
-                required=True,
-                description='Name of the logger (e.g. MyLogger)',
-                regex_validator=r'^[a-zA-Z]\w*$',
-                error_message='Only alphanumeric characters allowed, must start with a letter.'
-            ),
-            SnippetParam(
-                name='file_name',
-                required=True,
-                default='custom.log',
-                description='Log file name (e.g. my_module.log)',
-                regex_validator=r'^[\w\.-]+$',
-                error_message='Invalid filename.'
-            )
-        ]
+        self.add_static_file('.', Readme(specifications=f" - Logger: {name} -> {filename}"))

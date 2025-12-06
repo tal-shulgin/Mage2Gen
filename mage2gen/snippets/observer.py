@@ -1,10 +1,7 @@
-# mage2gen/snippets/observer.py
-import typer
-import os
-from typing import Optional
 from enum import Enum
 from .. import Snippet, Phpclass, Phpmethod, Xmlnode, Readme
 from ..utils import upperfirst
+import os
 
 class Scope(str, Enum):
     ALL = 'all'
@@ -17,18 +14,13 @@ class ObserverSnippet(Snippet):
     snippet_label = 'Observer / Event'
     description = "Create an Observer to hook into Magento events."
 
-    def add(self, 
-        event: str = typer.Option(..., prompt="Event Name", help="e.g. catalog_product_save_after"),
-        scope: Scope = typer.Option(Scope.ALL, prompt="Scope", help="Execution scope")
-    ):
+    def add(self, event, scope=Scope.ALL):
         split_event = event.split('_')
-
         observerFolder = ['Observer']
         if scope != Scope.ALL:
             observerFolder.append(scope.value if hasattr(scope, 'value') else scope)
             
         observerFolder.extend([split_event[0], ''.join(upperfirst(item) for item in split_event[1:])])
-        
         observer_class_name = '\\'.join(observerFolder)
         
         observer = Phpclass(
@@ -37,7 +29,6 @@ class ObserverSnippet(Snippet):
             implements=['ObserverInterface']
         )
         
-        # Using the new Jinja2 powered Phpmethod
         observer.add_method(Phpmethod(
             'execute',
             params=['Observer $observer'],
@@ -48,7 +39,6 @@ class ObserverSnippet(Snippet):
 
         self.add_class(observer)    
 
-        # XML Generation (Kept as Python logic for merging capability)
         config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:Event/etc/events.xsd"}, nodes=[
             Xmlnode('event', attributes={'name': event}, nodes=[
                 Xmlnode('observer', attributes={
@@ -64,7 +54,6 @@ class ObserverSnippet(Snippet):
         elif scope == Scope.ADMINHTML:
             xml_path.append('adminhtml')
         elif scope == Scope.WEBAPI:
-            # Simplified logic for pilot
             xml_path.append('webapi_rest') 
         elif scope == Scope.GRAPHQL:
             xml_path.append('graphql')

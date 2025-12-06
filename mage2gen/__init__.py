@@ -19,4 +19,5 @@ from .module import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, GraphQlSch
 from .snippet import Snippet, SnippetParam
 
 # Load snippets
-from . import snippets
+# Removed to prevent circular dependency and force lazy loading in app.py
+# from . import snippets

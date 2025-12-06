@@ -303,7 +303,15 @@ class StaticFile:
 
     def generate(self):
         if self.template_file:
-            return TemplateEngine.render(self.template_file, self.context_data())
+            # V3: Jinja2 templates
+            if self.template_file.endswith('.j2'):
+                return TemplateEngine.render(self.template_file, self.context_data())
+            
+            # V2 Legacy: Python string format
+            # We need to read the file manually here as TemplateEngine only handles jinja env
+            with open(os.path.join(TEMPLATE_DIR, self.template_file), 'rb') as tmpl:
+                template = tmpl.read().decode('utf-8')
+            return template.format(**self.context_data())
         
         return "\n\n".join(self._context_data['body'])
 

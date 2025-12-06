@@ -1,141 +1,46 @@
-# A Magento 2 module generator library
-# Copyright (C) 2016 Derrick Heesbeen
-#
-# This file is part of Mage2Gen.
-#
-# Mage2Gen is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
-import os
-from .. import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, Snippet, SnippetParam, Readme
+from .. import Snippet, StaticFile, Readme, Xmlnode
+from ..core.template import TemplateEngine
+from ..utils import upperfirst
 
 class ConsoleSnippet(Snippet):
-	snippet_label = 'Console Command'
-	
-	description = """
-	Console commands are listed and executed by **bin/magento** command line tool.
+    snippet_label = 'Console Command'
+    description = "Create a bin/magento console command."
 
-	- **action_name:** Console action name. Example: Backup, Import
-	- **short_description:** Console action description. Example: Backups the Magento environment, Starts product import
+    def add(self, name, description="Sample command"):
+        package = self._module.package
+        module = self._module.name
+        
+        # Class Name: Vendor\Module\Console\Command\Name
+        # Command Name: vendor:module:name (if simple name provided)
+        
+        if ':' in name:
+            command_name = name
+            class_part = "".join([x.capitalize() for x in name.split(':')])
+        else:
+            command_name = f"{package.lower()}:{module.lower()}:{name}"
+            class_part = upperfirst(name)
+            
+        class_name = f"{class_part}Command"
+        namespace = f"{package}\\{module}\\Console\\Command"
+        
+        content = TemplateEngine.render('snippets/console/command.j2', {
+            'namespace': namespace,
+            'class_name': class_name,
+            'command_name': command_name,
+            'description': description
+        })
+        self.add_static_file(f"Console/Command/{class_name}.php", StaticFile(f"{class_name}.php", body=content))
 
-	Snippet generation
-	------------------
-	When you generate a module with an action_name (*backup*) and the module is named (*MageGen/Module*).
-	The generated command used by **bin/magento** is:
-	
-		bin/magento mage2gen_module:backup
-	"""
+        # DI XML
+        config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[
+            Xmlnode('type', attributes={'name': r'Magento\Framework\Console\CommandList'}, nodes=[
+                Xmlnode('arguments', nodes=[
+                    Xmlnode('argument', attributes={'name':'commands', 'xsi:type':'array'}, nodes=[
+                        Xmlnode('item', attributes={'name': command_name.replace(':','_'), 'xsi:type':'object'}, node_text=f"{namespace}\\{class_name}")
+                    ])
+                ])
+            ])
+        ])
+        self.add_xml('etc/di.xml', config)
 
-	def add(self,action_name,short_description, extra_params=None):
-
-		console = Phpclass(
-            'Console\\Command\\' + action_name, 
-            extends='Command',
-            dependencies=[
-                r'Symfony\Component\Console\Command\Command',
-                r'Symfony\Component\Console\Input\InputArgument',
-                r'Symfony\Component\Console\Input\InputOption',
-                r'Symfony\Component\Console\Input\InputInterface',
-                r'Symfony\Component\Console\Output\OutputInterface'
-            ],
-            attributes=[
-                'private const NAME_ARGUMENT = "name";',
-                'private const NAME_OPTION = "option";'
-            ]
-        )
-
-		console.add_method(
-            Phpmethod(
-                'execute',
-                access='protected',
-                params=['InputInterface $input', 'OutputInterface $output'],
-                return_type='int',
-                body="""
-$name = $input->getArgument(self::NAME_ARGUMENT);
-$option = $input->getOption(self::NAME_OPTION);
-$output->writeln("Hello " . $name);
-return Command::SUCCESS;
-                """,
-                docstring=['@inheritdoc']
-            )
-        )
-
-		console.add_method(
-            Phpmethod(
-                'configure',
-                access='protected',
-                return_type='void',
-                body="""
-$this->setName("{module_name}:{action_name}");
-$this->setDescription("{short_description}");
-$this->setDefinition([
-    new InputArgument(self::NAME_ARGUMENT, InputArgument::OPTIONAL, "Name"),
-    new InputOption(self::NAME_OPTION, "-a", InputOption::VALUE_NONE, "Option functionality")
-]);
-parent::configure();
-                """.format(
-                    module_name=self.module_name.lower(),
-                    action_name=action_name.lower(),
-                    short_description=short_description
-                ),
-                docstring=['@inheritdoc']
-            )
-        )
-
-		self.add_class(console);
-
-		config = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[
-			Xmlnode('type', attributes={'name': r'Magento\Framework\Console\CommandList'}, nodes=[
-				Xmlnode('arguments', nodes=[
-					Xmlnode('argument', 
-							attributes={
-								'name':'commands',
-								'xsi:type':'array',
-							},
-							nodes=[
-								Xmlnode('item',
-									attributes={
-										'name':action_name,
-										'xsi:type':'object'
-									},
-									node_text=console.class_namespace
-								)
-							])
-				])
-			])
-		])
-
-		self.add_xml('etc/di.xml', config)
-
-		self.add_static_file(
-			'.',
-			Readme(
-				specifications=" - Console Command\n\t- {}".format(action_name),
-			)
-		)
-
-	@classmethod
-	def params(cls):
-		return [
-			SnippetParam(
-				name='action_name', 
-				required=True, 
-				description='Example: Backup, Import',
-				regex_validator= r'^[a-zA-Z]{1}\w+$',
-				error_message='Only alphanumeric and underscore characters are allowed, and need to start with a alphabetic character.'),
-			SnippetParam(
-				name='short_description', 
-				required=True, 
-				description='Example: Backups magento enviroment, Starts product import'),
-		]
-
-
+        self.add_static_file('.', Readme(specifications=f" - Console: {command_name}"))

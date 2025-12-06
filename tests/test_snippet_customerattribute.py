@@ -11,10 +11,11 @@ class TestSnippetCustomerAttribute(unittest.TestCase):
     def test_snippet(self):
         module = Module(package='Package', name='Name', description='Description')
         snippet = CustomerAttributeSnippet(module)
+
+        # The V3 snippet handles legacy arguments via **kwargs mapping
         sample_output = snippet.add(
-            attribute_label='test', 
-            customer_forms=False, 
-            customer_address_forms=False, 
+            attribute_label='test',
+            customer_forms='adminhtml_customer', 
             customer_entity='customer', 
             frontend_input='text',
             static_field=True, 

@@ -7,19 +7,24 @@ from mage2gen.core.template import TemplateEngine
 
 class TestTemplate(unittest.TestCase):
     
-    def test_render(self):
-        # We need a dummy template, or we can use string loading for testing if needed,
-        # but PackageLoader requires a file.
-        # For this test, I assume 'test.j2' exists or I mock it.
-        # Let's rely on checking if the Env loads correctly.
-        
+    def test_env_initialization(self):
         env = TemplateEngine.get_env()
         self.assertIsNotNone(env)
         
-        # Test basic jinja functionality manually
+    def test_render_string(self):
+        # Verify Jinja2 behavior
+        env = TemplateEngine.get_env()
         t = env.from_string("Hello {{ name }}")
-        result = t.render(name="World")
-        self.assertEqual(result, "Hello World")
+        self.assertEqual(t.render(name="Mage2Gen"), "Hello Mage2Gen")
+
+    def test_render_file(self):
+        # Test loading a real template (e.g. registration.j2)
+        result = TemplateEngine.render('registration.j2', {
+            'license': '',
+            'module_name': 'Vendor_Module'
+        })
+        self.assertIn("ComponentRegistrar::register", result)
+        self.assertIn("'Vendor_Module'", result)
 
 if __name__ == '__main__':
     unittest.main()
