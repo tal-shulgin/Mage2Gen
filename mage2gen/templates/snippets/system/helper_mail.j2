@@ -1,0 +1,80 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\App\Helper\AbstractHelper;
+use Magento\Framework\App\Helper\Context;
+use Magento\Framework\Mail\Template\TransportBuilder;
+use Magento\Framework\Translate\Inline\StateInterface;
+use Magento\Store\Model\StoreManagerInterface;
+
+class {{ class_name }} extends AbstractHelper
+{
+    /**
+     * @var TransportBuilder
+     */
+    protected $transportBuilder;
+
+    /**
+     * @var StateInterface
+     */
+    protected $inlineTranslation;
+
+    /**
+     * @var StoreManagerInterface
+     */
+    protected $storeManager;
+
+    /**
+     * @param Context $context
+     * @param TransportBuilder $transportBuilder
+     * @param StateInterface $inlineTranslation
+     * @param StoreManagerInterface $storeManager
+     */
+    public function __construct(
+        Context $context,
+        TransportBuilder $transportBuilder,
+        StateInterface $inlineTranslation,
+        StoreManagerInterface $storeManager
+    ) {
+        parent::__construct($context);
+        $this->transportBuilder = $transportBuilder;
+        $this->inlineTranslation = $inlineTranslation;
+        $this->storeManager = $storeManager;
+    }
+
+    /**
+     * Send {{ template_label }} Email
+     *
+     * @param array $templateParams
+     * @param string $senderEmail
+     * @param string $receiverEmail
+     * @return void
+     */
+    public function send{{ method_name }}($templateParams, $senderEmail, $receiverEmail)
+    {
+        $this->inlineTranslation->suspend();
+        
+        try {
+            $transport = $this->transportBuilder
+                ->setTemplateIdentifier('{{ config_path }}')
+                ->setTemplateOptions(
+                    [
+                        'area' => \Magento\Framework\App\Area::AREA_FRONTEND,
+                        'store' => $this->storeManager->getStore()->getId()
+                    ]
+                )
+                ->setTemplateVars($templateParams)
+                ->setFromByScope($senderEmail)
+                ->addTo($receiverEmail)
+                ->getTransport();
+
+            $transport->sendMessage();
+        } catch (\Exception $e) {
+            $this->_logger->critical($e->getMessage());
+        }
+
+        $this->inlineTranslation->resume();
+    }
+}

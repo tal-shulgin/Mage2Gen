@@ -99,6 +99,7 @@ class SystemSnippet(Snippet):
         if field_type == 'email':
             template_id = f"{section.lower()}_{group.lower()}_{field.lower()}"
             template_file = f"{field.lower()}.html"
+            config_path = f"{section.lower()}/{group.lower()}/{field.lower()}"
             
             # Generate email_templates.xml
             email_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Email:etc/email_templates.xsd"}, nodes=[
@@ -119,5 +120,18 @@ class SystemSnippet(Snippet):
                 'field_id': field
             })
             self.add_static_file(f"view/frontend/email/{template_file}", StaticFile(template_file, body=html_content))
+
+            # Generate Helper
+            helper_name = f"{upperfirst(field)}Mail"
+            namespace = f"{self._module.package}\\{self._module.name}\\Helper"
+            
+            helper_content = TemplateEngine.render('snippets/system/helper_mail.j2', {
+                'namespace': namespace,
+                'class_name': helper_name,
+                'template_label': upperfirst(field),
+                'method_name': upperfirst(field),
+                'config_path': config_path
+            })
+            self.add_static_file(f"Helper/{helper_name}.php", StaticFile(f"{helper_name}.php", body=helper_content))
 
         self.add_static_file('.', Readme(specifications=f" - Config: {section}/{group}/{field}"))
