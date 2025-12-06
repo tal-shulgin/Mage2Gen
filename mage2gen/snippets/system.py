@@ -6,7 +6,13 @@ class SystemSnippet(Snippet):
     snippet_label = 'System Config'
     description = "Add a System Configuration field."
 
-    def add(self, tab, section, group, field, field_type="text", default_value="", create_tab=False, **kwargs):
+    def add(self, 
+        tab, section, group, field, 
+        field_type="text", 
+        default_value="", 
+        create_tab=False,
+        **kwargs
+    ):
         type = field_type
         
         # Data Preparation
@@ -14,6 +20,16 @@ class SystemSnippet(Snippet):
         section_data = {'id': section.lower(), 'label': upperfirst(section), 'sortOrder': 10, 'showInDefault': 1, 'showInWebsite': 1, 'showInStore': 1}
         group_data = {'id': group.lower(), 'label': upperfirst(group), 'sortOrder': 10, 'showInDefault': 1, 'showInWebsite': 1, 'showInStore': 1}
         
+        # Source Model mapping
+        source_model = ''
+        if type in ['select', 'multiselect']:
+            source_model = 'Magento\\Config\\Model\\Config\\Source\\Yesno'
+        elif type == 'email':
+            # Magento's default source model for email templates
+            source_model = 'Magento\\Config\\Model\\Config\\Source\\Email\\Template'
+            # In system.xml, type is usually 'select' for email templates, not 'email'
+            type = 'select'
+
         field_data = {
             'id': field.lower(),
             'label': upperfirst(field.replace('_', ' ')),
@@ -21,13 +37,13 @@ class SystemSnippet(Snippet):
             'sortOrder': 10,
             'showInDefault': 1, 'showInWebsite': 1, 'showInStore': 1,
             'comment': '',
-            'source_model': 'Magento\\Config\\Model\\Config\\Source\\Yesno' if type in ['select', 'multiselect'] else '',
+            'source_model': source_model,
             'backend_model': ''
         }
         
         resource_id = f"{self.module_name}::config_{section.lower()}"
 
-        # 1. System XML (Using Xmlnode for merge support)
+        # 1. System XML
         system_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Config:etc/system_file.xsd"}, nodes=[
             Xmlnode('system', nodes=[
                 Xmlnode('section', attributes={'id': section.lower()}, nodes=[
@@ -67,7 +83,7 @@ class SystemSnippet(Snippet):
         ])
         self.add_xml('etc/acl.xml', acl_node)
 
-        # 3. Config XML
+        # 3. Config XML (Defaults)
         default_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Store:etc/config.xsd"}, nodes=[
             Xmlnode('default', nodes=[
                 Xmlnode(section.lower(), nodes=[
@@ -78,5 +94,30 @@ class SystemSnippet(Snippet):
             ])
         ])
         self.add_xml('etc/config.xml', default_node)
+
+        # 4. Email Template Logic (Parity Restoration)
+        if field_type == 'email':
+            template_id = f"{section.lower()}_{group.lower()}_{field.lower()}"
+            template_file = f"{field.lower()}.html"
+            
+            # Generate email_templates.xml
+            email_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Email:etc/email_templates.xsd"}, nodes=[
+                Xmlnode('template', attributes={
+                    'id': template_id,
+                    'label': upperfirst(field),
+                    'file': template_file,
+                    'type': 'html',
+                    'module': self.module_name,
+                    'area': 'frontend'
+                })
+            ])
+            self.add_xml('etc/email_templates.xml', email_node)
+            
+            # Generate HTML Template
+            html_content = TemplateEngine.render('snippets/system/email.html.j2', {
+                'label': upperfirst(field),
+                'field_id': field
+            })
+            self.add_static_file(f"view/frontend/email/{template_file}", StaticFile(template_file, body=html_content))
 
         self.add_static_file('.', Readme(specifications=f" - Config: {section}/{group}/{field}"))

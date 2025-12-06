@@ -1,0 +1,21 @@
+<!--@subject {{ label }} @-->
+<!--@vars {
+"var this": "Variables"
+} @-->
+{{ '{{' }}template config_path="design/email/header_template"{{ '}}' }}
+
+<table>
+    <tr>
+        <td>
+            <h1>{{ label }}</h1>
+            <p>
+                Hello {{ '{{' }}var name{{ '}}' }},
+            </p>
+            <p>
+                This is a sample email template for {{ field_id }}.
+            </p>
+        </td>
+    </tr>
+</table>
+
+{{ '{{' }}template config_path="design/email/footer_template"{{ '}}' }}
