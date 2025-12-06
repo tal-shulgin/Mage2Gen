@@ -1,230 +1,62 @@
-# A Magento 2 module generator library
-# Copyright (C) 2018 Lewis Voncken
-#
-# This file is part of Mage2Gen.
-import os
-from .. import Module, Phpclass, Phpmethod, Xmlnode, Snippet, SnippetParam, GraphQlSchema, GraphQlObjectType, \
-    GraphQlObjectItem, StaticFile, Readme
+from .. import Snippet, StaticFile, Readme, Xmlnode
+from ..core.template import TemplateEngine
 from ..utils import upperfirst, lowerfirst
-
 
 class GraphQlEndpointSnippet(Snippet):
     snippet_label = 'GraphQl Endpoint'
+    description = "Create a GraphQl Query or Mutation."
 
-    description = """
-    Create a GraphQl Endpoint (Query or Mutation).
-    """
-
-    GRAPHQL_TYPE_CHOISES = [
-        ('Query', 'Query'),
-        ('Mutation', 'Mutation'),
-        ('Custom', 'Custom')
-    ]
-
-    def add(self, base_type, identifier, custom_type=False, description='', object_arguments=False, object_fields=False,
-            data_provider_dependency=False, add_cache_identity=False, extra_params=None):
-
-        if not object_fields:
-            object_fields = 'id'
-            if object_arguments:
-                object_fields = object_arguments
-
-        if custom_type:
-            identifier = custom_type
-        
-        identifier = lowerfirst(identifier)
-        item_identifier = upperfirst(identifier)
-        
-        resolver_classname = 'Model\\Resolver\\{}'.format(item_identifier)
-        resolver_graphqlformat = '{}\\\\{}\\\\{}'.format(self._module.package, self._module.name, resolver_classname)
-
-        cache_identity_graphqlformat = ''
-        if add_cache_identity and item_identifier and base_type == 'Query':
-            object_id = object_fields.split(',')[0]
-            cache_identity_graphqlformat = '{}\\\\{}\\\\Model\\\\Resolver\\\\{}\\\\Identity'.format(self._module.package, self._module.name, item_identifier)
+    def add(self, base_type='Query', identifier=None, **kwargs):
+        # Support legacy argument names
+        if identifier is None and 'custom_type' in kwargs:
+            identifier = kwargs['custom_type']
+            base_type = 'Custom' # Infer custom
             
-            # Create Identity Class
-            cacheIdentity = Phpclass(
-                'Model\\Resolver\\{}\\Identity'.format(item_identifier),
-                implements=['IdentityInterface'],
-                dependencies=['Magento\\Framework\\GraphQl\\Query\\Resolver\\IdentityInterface'],
-                attributes=[r'private $cacheTag = \Magento\Framework\App\Config::CACHE_TAG;']
-            )
-            cacheIdentity.add_method(Phpmethod(
-                'getIdentities',
-                params=['array $resolvedData'],
-                body="""$ids = empty($resolvedData['{object_id}']) ? [] : [$this->cacheTag, sprintf('%s_%s', $this->cacheTag, $resolvedData['{object_id}'])];
-return $ids;""".format(object_id=object_id),
-                docstring=['@inheritdoc']
-            ))
-            self.add_class(cacheIdentity)
+        if not identifier:
+            raise ValueError("Identifier required")
 
-        # Define Output Type
-        return_type_name = 'String'
+        package = self._module.package
+        module = self._module.name
         
-        if base_type == 'Custom':
-            return_type_name = identifier
-        elif base_type == 'Query':
-            return_type_name = item_identifier + 'Output'
-        elif base_type == 'Mutation':
-            return_type_name = item_identifier + 'Output'
-
-        # Define Input Type Name (for Mutations)
-        input_type_name = item_identifier + 'Input'
-
-        schema = GraphQlSchema()
-
-        # 1. Add the Operation to schema (Query/Mutation)
-        if base_type != 'Custom':
-            base_object_type = GraphQlObjectType(base_type)
-            
-            # Argument string construction
-            # Query: field(id: Int): Output
-            # Mutation: field(input: Input!): Output
-            
-            item_args_str = object_arguments
-            item_input_def = False
-
-            if base_type == 'Mutation':
-                # Enforce strict input object for mutations
-                item_args_str = 'input: {}!'.format(input_type_name)
-                item_input_def = input_type_name + '!'
-
-            base_object_type.add_objectitem(
-                GraphQlObjectItem(
-                    identifier,
-                    item_arguments=item_args_str,
-                    item_input=item_input_def,
-                    item_type=return_type_name,
-                    item_resolver=resolver_graphqlformat,
-                    item_cache_identity=cache_identity_graphqlformat,
-                    description=description,
-                    base_type=base_type
-                )
-            )
-            schema.add_objecttype(base_object_type)
-
-        # 2. Define the Output Object Type
-        # type IdentifierOutput { ... }
-        if base_type in ['Query', 'Mutation']:
-            output_definition = GraphQlObjectType(return_type_name)
-            for field in object_fields.split(','):
-                output_definition.add_objectitem(
-                    GraphQlObjectItem(field.strip(), description="Output field " + field.strip())
-                )
-            schema.add_objecttype(output_definition)
-
-        # 3. Define the Input Object Type (Mutation only)
-        # input IdentifierInput { ... }
-        if base_type == 'Mutation':
-            input_definition = GraphQlObjectType(input_type_name, type_declaration='input')
-            for arg in object_arguments.split(','):
-                input_definition.add_objectitem(
-                    GraphQlObjectItem(arg.strip(), description="Input field " + arg.strip())
-                )
-            schema.add_objecttype(input_definition)
-
-        self.add_graphqlschema('etc/schema.graphqls', schema)
-
-        # --- Create PHP Resolver ---
+        field_name = lowerfirst(identifier)
+        class_name = upperfirst(field_name)
         
-        resolver_deps = [
-            'Magento\\Framework\\GraphQl\\Config\\Element\\Field',
-            'Magento\\Framework\\GraphQl\\Query\\ResolverInterface',
-            'Magento\\Framework\\GraphQl\\Schema\\Type\\ResolveInfo',
-        ]
-        resolver = Phpclass(
-            resolver_classname,
-            implements=['ResolverInterface'],
-            dependencies=resolver_deps
-        )
-
-        resolve_body = "return ['status' => 'success'];"
-        if base_type == 'Query':
-            resolve_body = "return []; // Return data matching " + return_type_name
-
-        resolver.add_method(Phpmethod(
-            'resolve',
-            params=[
-                'Field $field',
-                '$context',
-                'ResolveInfo $info',
-                'array $value = null',
-                'array $args = null'
-            ],
-            body=resolve_body,
-            docstring=['@inheritdoc']
-        ))
-
-        self.add_class(resolver)
-
-        # Module sequence
-        etc_module = Xmlnode('config', attributes={
-            'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Module/etc/module.xsd"}, nodes=[
-            Xmlnode('module', attributes={'name': self.module_name}, nodes=[
+        resolver_class = f"{package}\\{module}\\Model\\Resolver\\{class_name}"
+        
+        # 1. Resolver Class
+        resolver_content = TemplateEngine.render('snippets/graphql/resolver.j2', {
+            'namespace': f"{package}\\{module}\\Model\\Resolver",
+            'class_name': class_name
+        })
+        self.add_static_file(f"Model/Resolver/{class_name}", StaticFile(f"{class_name}.php", body=resolver_content))
+        
+        # 2. Schema GraphQL
+        # Simplified generation for V3: We append string to schema.graphqls file via StaticFile
+        # instead of building object graph.
+        
+        output_type_name = f"{class_name}Output"
+        args_str = "" # TODO: Add arguments support if needed
+        
+        schema_content = TemplateEngine.render('snippets/graphql/schema.j2', {
+            'type_name': base_type,
+            'field_name': field_name,
+            'args': args_str,
+            'return_type': output_type_name,
+            'resolver_class': resolver_class.replace('\\', '\\\\'), # GraphQL requires double slash
+            'description': f"{base_type} field {field_name}",
+            'output_type': True
+        })
+        
+        self.add_static_file('etc/schema.graphqls', StaticFile('schema.graphqls', body=schema_content))
+        
+        # 3. Module Sequence
+        config = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Module/etc/module.xsd"}, nodes=[
+            Xmlnode('module', attributes={'name': f"{package}_{module}"}, nodes=[
                 Xmlnode('sequence', attributes={}, nodes=[
                     Xmlnode('module', attributes={'name': 'Magento_GraphQl'})
                 ])
             ])
         ])
-        self.add_xml('etc/module.xml', etc_module)
+        self.add_xml('etc/module.xml', config)
 
-        self.add_static_file(
-            '.',
-            Readme(
-                specifications=" - GraphQl Endpoint\n\t- {} ({})".format(identifier, base_type),
-            )
-        )
-
-    @classmethod
-    def params(cls):
-        return [
-            SnippetParam(name='base_type', choises=cls.GRAPHQL_TYPE_CHOISES, default='Query'),
-            SnippetParam(
-                name='custom_type', required=True,
-                depend={'base_type': 'Custom'},
-                description='Example: products',
-                regex_validator=r'^[a-zA-Z\d\-_\s]+$',
-                error_message='Only alphanumeric'
-            ),
-            SnippetParam(
-                name='identifier', required=True,
-                depend={'base_type': r'Query|Mutation'},
-                description='Example: createProduct',
-                regex_validator=r'^[a-zA-Z\d\-_\s]+$',
-                error_message='Only alphanumeric'
-            ),
-            SnippetParam(
-                name='description',
-                description='Short description',
-                required=False
-            ),
-            SnippetParam(
-                name='object_arguments',
-                depend={'base_type': r'Query|Mutation'},
-                required=False,
-                description='comma seperated args (e.g. id,name)',
-                error_message='Only alphanumeric'
-            ),
-            SnippetParam(
-                name='object_fields',
-                required=False,
-                depend={'base_type': r'Query|Custom'},
-                description='comma seperated fields (e.g. sku,price)',
-                error_message='Only alphanumeric'
-            ),
-            SnippetParam(
-                name='data_provider_dependency',
-                required=False,
-                depend={'base_type': 'Query'},
-                description=r'Example: Magento\Store\Api\StoreConfigManagerInterface',
-                regex_validator=r'^[\w\\]+$',
-                error_message='Only alphanumeric, underscore and backslash characters are allowed'
-            ),
-             SnippetParam(
-                name='add_cache_identity',
-                required=True,
-                depend={'base_type': 'Query'},
-                default=False,
-                yes_no=True),
-        ]
+        self.add_static_file('.', Readme(specifications=f" - GraphQL: {base_type} {field_name}"))

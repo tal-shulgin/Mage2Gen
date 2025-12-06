@@ -1,0 +1,10 @@
+type {{ type_name }} {
+    {{ field_name }}{{ args }}: {{ return_type }} @resolver(class: "{{ resolver_class }}") @doc(description: "{{ description }}")
+}
+
+{% if output_type %}
+type {{ return_type }} {
+    status: String
+    message: String
+}
+{% endif %}

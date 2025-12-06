@@ -371,5 +371,48 @@ def api(
     ApiSnippet(mod).add(name, method)
     mod.generate_module(output_dir)
 
+@app.command()
+def widget(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    name: str = typer.Option(..., help="Widget Name"),
+    field: str = typer.Option("title", help="Parameter Name"),
+    type: str = typer.Option("text", help="Parameter Type"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.widget import WidgetSnippet
+    mod = Module(package, module)
+    WidgetSnippet(mod).add(name, field, type)
+    mod.generate_module(output_dir)
+
+@app.command("unit-test")
+def unit_test(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    suite: str = typer.Option(..., help="Test Suite Name"),
+    name: str = typer.Option(..., help="Test Method Name"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.unittest import UnitTestSnippet
+    mod = Module(package, module)
+    UnitTestSnippet(mod).add(suite, name)
+    mod.generate_module(output_dir)
+
+@app.command()
+def graphql(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    type: str = typer.Option("Query", help="Type: Query, Mutation"),
+    name: str = typer.Option(..., help="Field Name"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.graphqlendpoint import GraphQlEndpointSnippet
+    mod = Module(package, module)
+    GraphQlEndpointSnippet(mod).add(base_type=type, identifier=name)
+    mod.generate_module(output_dir)
+
 if __name__ == "__main__":
     app()

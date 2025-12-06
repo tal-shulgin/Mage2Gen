@@ -1,33 +1,47 @@
 try:
-	from setuptools import setup
+    from setuptools import setup
 except ImportError:
-	from distutils.core import setup
+    from distutils.core import setup
 
 def readme():
-	with open('README.rst') as f:
-		return f.read()
+    # Fallback if README.md is missing
+    if os.path.exists('README.md'):
+        with open('README.md') as f:
+            return f.read()
+    return "Mage2Gen 3.0"
+
+import os
 
 setup(
     name = 'Mage2Gen',
-    packages = ['mage2gen', 'mage2gen.snippets', 'mage2gen.core'],
+    packages = [
+        'mage2gen', 
+        'mage2gen.snippets', 
+        'mage2gen.core', 
+        'mage2gen.features'
+    ],
     package_data={'mage2gen': ['templates/**/*.j2', 'templates/**/*.tmpl', 'licenses/*.txt']},
-    scripts=['bin/mage2gen'],
-    version = '3.0.0',
-    description = 'Magento 2 module generator',
-	long_description=readme(),
-	classifiers=[
+    version = '3.1.0',
+    description = 'Magento 2 module generator (V3)',
+    long_description=readme(),
+    long_description_content_type='text/markdown',
+    classifiers=[
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 3',
         'Topic :: Software Development :: Code Generators',
-      ],
-	author = 'Maikel Martens',
-	author_email = 'maikel@martens.me',
-	license='GPL3',
-	url = 'https://github.com/krukas/Mage2Gen',
-	download_url = 'https://github.com/krukas/Mage2Gen/releases/tag/2.3.3',
-	keywords = ['Magento', 'Magento2', 'module', 'generator', 'mage2gen'],
-	install_requires=[
+    ],
+    author = 'Maikel Martens',
+    author_email = 'maikel@martens.me',
+    license='GPL3',
+    url = 'https://github.com/krukas/Mage2Gen',
+    keywords = ['Magento', 'Magento2', 'module', 'generator', 'mage2gen', 'cli'],
+    install_requires=[
         'Jinja2>=3.1.2',
         'typer>=0.9.0'
     ],
+    entry_points={
+        'console_scripts': [
+            'mage2gen=mage2gen.app:app',
+        ],
+    },
 )

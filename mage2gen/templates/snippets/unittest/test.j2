@@ -1,0 +1,34 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use PHPUnit\Framework\TestCase;
+
+class {{ class_name }} extends TestCase
+{
+    public static function setUpBeforeClass(): void
+    {
+        // setup
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        // teardown
+    }
+
+    protected function setUp(): void
+    {
+        // setup
+    }
+
+    protected function tearDown(): void
+    {
+        // teardown
+    }
+
+    public function test{{ test_method }}()
+    {
+        $this->assertTrue(false, 'Test not implemented');
+    }
+}
