@@ -1,0 +1,45 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\Api\ExtensibleDataInterface;
+
+interface {{ class_name }} extends ExtensibleDataInterface
+{
+{% for field in fields %}
+    const {{ field.const }} = '{{ field.name }}';
+{% endfor %}
+
+{% for field in fields %}
+    /**
+     * Get {{ field.name }}
+     *
+     * @return {{ field.doc_type }}
+     */
+    public function get{{ field.method_name }}(): {{ field.php_type }};
+
+    /**
+     * Set {{ field.name }}
+     *
+     * @param {{ field.doc_type }} ${{ field.var_name }}
+     * @return {{ class_name }}
+     */
+    public function set{{ field.method_name }}({{ field.php_type }} ${{ field.var_name }}): {{ class_name }};
+{% endfor %}
+
+    /**
+     * Retrieve existing extension attributes object or create a new one.
+     *
+     * @return \{{ extension_interface }}|null
+     */
+    public function getExtensionAttributes();
+
+    /**
+     * Set an extension attributes object.
+     *
+     * @param \{{ extension_interface }} $extensionAttributes
+     * @return $this
+     */
+    public function setExtensionAttributes(\{{ extension_interface }} $extensionAttributes);
+}

@@ -15,6 +15,9 @@ class Column(SchemaComponent):
         'bigint': 'bigint',
         'smallint': 'smallint',
         'boolean': 'smallint', # Boolean is usually smallint in DB
+        'string': 'varchar',
+        'bool': 'smallint',
+        'int': 'int',
         'tinyint': 'tinyint',
         'float': 'float',
         'decimal': 'decimal',

@@ -1,0 +1,27 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
+use {{ model_namespace }}\{{ model_name }};
+use {{ resource_namespace }}\{{ resource_name }};
+
+class {{ class_name }} extends AbstractCollection
+{
+    /**
+     * @inheritDoc
+     */
+    protected $_idFieldName = '{{ id_field }}';
+
+    /**
+     * @inheritDoc
+     */
+    protected function _construct()
+    {
+        $this->_init(
+            {{ model_name }}::class,
+            {{ resource_name }}::class
+        );
+    }
+}

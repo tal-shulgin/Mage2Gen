@@ -3,6 +3,7 @@ PHP_TYPE_MAP = {
     'boolean': 'bool',
     'smallint': 'int',
     'integer': 'int',
+    'int': 'int',
     'bigint': 'int',
     'float': 'float',
     'numeric': 'float',

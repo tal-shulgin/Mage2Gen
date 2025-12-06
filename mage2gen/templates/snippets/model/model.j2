@@ -1,0 +1,58 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\Model\AbstractModel;
+use {{ interface_namespace }}\{{ interface_name }};
+use {{ resource_namespace }}\{{ resource_name }};
+
+class {{ class_name }} extends AbstractModel implements {{ interface_name }}
+{
+    /**
+     * @inheritDoc
+     */
+    protected $_eventPrefix = '{{ event_prefix }}';
+
+    /**
+     * @inheritDoc
+     */
+    protected function _construct()
+    {
+        $this->_init({{ resource_name }}::class);
+    }
+
+{% for field in fields %}
+    /**
+     * @inheritDoc
+     */
+    public function get{{ field.method_name }}(): {{ field.php_type }}
+    {
+        return ({{ field.cast_type }}) $this->getData(self::{{ field.const }});
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function set{{ field.method_name }}({{ field.php_type }} ${{ field.var_name }}): {{ interface_name }}
+    {
+        return $this->setData(self::{{ field.const }}, ${{ field.var_name }});
+    }
+{% endfor %}
+
+    /**
+     * @inheritDoc
+     */
+    public function getExtensionAttributes()
+    {
+        return $this->_getExtensionAttributes();
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function setExtensionAttributes(\{{ extension_interface }} $extensionAttributes)
+    {
+        return $this->_setExtensionAttributes($extensionAttributes);
+    }
+}
