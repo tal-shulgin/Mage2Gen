@@ -1,0 +1,17 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Payment\Model\Method\AbstractMethod;
+
+class {{ class_name }} extends AbstractMethod
+{
+    protected $_code = '{{ payment_code }}';
+    protected $_isOffline = true;
+
+    public function isAvailable(\Magento\Quote\Api\Data\CartInterface $quote = null)
+    {
+        return parent::isAvailable($quote);
+    }
+}

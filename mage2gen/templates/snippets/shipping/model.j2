@@ -1,0 +1,30 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Shipping\Model\Carrier\AbstractCarrier;
+use Magento\Shipping\Model\Carrier\CarrierInterface;
+use Magento\Quote\Model\Quote\Address\RateRequest;
+use Magento\Shipping\Model\Rate\Result;
+
+class {{ class_name }} extends AbstractCarrier implements CarrierInterface
+{
+    protected $_code = '{{ shipping_code }}';
+    protected $_isFixed = true;
+
+    public function collectRates(RateRequest $request)
+    {
+        if (!$this->getConfigFlag('active')) {
+            return false;
+        }
+        /** @var Result $result */
+        $result = $this->_rateResultFactory->create();
+        return $result;
+    }
+
+    public function getAllowedMethods()
+    {
+        return [$this->_code => $this->getConfigData('name')];
+    }
+}

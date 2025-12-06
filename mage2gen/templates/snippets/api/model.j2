@@ -1,0 +1,17 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use {{ interface }};
+
+class {{ class_name }} implements \{{ interface_name_short }}
+{
+    /**
+     * @inheritdoc
+     */
+    public function {{ method_name }}($param)
+    {
+        return "Hello API: " . $param;
+    }
+}

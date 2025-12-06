@@ -331,5 +331,45 @@ def admin_crud(
     
     mod.generate_module(output_dir)
 
+@app.command()
+def payment(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    name: str = typer.Option(..., help="Method Name"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.payment import PaymentSnippet
+    mod = Module(package, module)
+    PaymentSnippet(mod).add(name)
+    mod.generate_module(output_dir)
+
+@app.command()
+def shipping(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    name: str = typer.Option(..., help="Method Name"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.shipping import ShippingSnippet
+    mod = Module(package, module)
+    ShippingSnippet(mod).add(name)
+    mod.generate_module(output_dir)
+
+@app.command()
+def api(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    name: str = typer.Option(..., help="API Name"),
+    method: str = typer.Option("GET", help="HTTP Method"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.api import ApiSnippet
+    mod = Module(package, module)
+    ApiSnippet(mod).add(name, method)
+    mod.generate_module(output_dir)
+
 if __name__ == "__main__":
     app()

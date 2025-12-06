@@ -1,98 +1,65 @@
-import os, locale
-from .. import Module, Phpclass, Phpmethod, Xmlnode, Readme, Snippet, SnippetParam
+from .. import Snippet, StaticFile, Readme, Xmlnode
+from ..core.template import TemplateEngine
 from ..utils import upperfirst
-from ..module import TEMPLATE_DIR
-
-class InterfaceClass(Phpclass):
-
-	template_file = os.path.join(TEMPLATE_DIR,'interface.tmpl')
-
-class InterfaceMethod(Phpmethod):
-
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-		self.template_file = os.path.join(TEMPLATE_DIR,'interfacemethod.tmpl')
 
 class ApiSnippet(Snippet):
+    snippet_label = 'API Endpoint'
+    description = "Creates a REST API Endpoint."
 
-	snippet_label = 'Api'
+    def add(self, name=None, method="GET", **kwargs):
+        # Support legacy argument names from tests
+        if name is None and 'api_name' in kwargs:
+            name = kwargs['api_name']
+        
+        if 'api_method' in kwargs:
+            method = kwargs['api_method']
+            
+        if not name:
+            raise ValueError("API Name is required")
 
-	description = """
-		Create your own api. Test is with the build in api tester in your magento 2 installation. http://<yourmagento2website>/swagger 
+        package = self._module.package
+        module = self._module.name
+        
+        name_clean = upperfirst(name)
+        interface_name = f"{name_clean}Interface"
+        model_name = name_clean
+        
+        # 1. Interface
+        if_ns = f"{package}\\{module}\\Api"
+        if_content = TemplateEngine.render('snippets/api/interface.j2', {
+            'namespace': if_ns,
+            'class_name': interface_name,
+            'method_name': method.lower() + name_clean
+        })
+        self.add_static_file(f"Api/{interface_name}", StaticFile(f"{interface_name}.php", body=if_content))
+        
+        # 2. Model
+        model_ns = f"{package}\\{module}\\Model"
+        model_content = TemplateEngine.render('snippets/api/model.j2', {
+            'namespace': model_ns,
+            'class_name': model_name,
+            'interface': f"\\{if_ns}\\{interface_name}",
+            'interface_name_short': interface_name,
+            'method_name': method.lower() + name_clean
+        })
+        self.add_static_file(f"Model/{model_name}", StaticFile(f"{model_name}.php", body=model_content))
+        
+        # 3. DI XML
+        di = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[
+            Xmlnode('preference', attributes={'for': f"{if_ns}\\{interface_name}", 'type': f"{model_ns}\\{model_name}"})
+        ])
+        self.add_xml('etc/di.xml', di)
+        
+        # 4. WebAPI XML
+        route_url = f"/V1/{package.lower()}-{module.lower()}/{name.lower()}"
+        webapi = Xmlnode('routes', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Webapi:etc/webapi.xsd"}, nodes=[
+            Xmlnode('route', attributes={'url': route_url, 'method': method}, nodes=[
+                Xmlnode('service', attributes={'class': f"{if_ns}\\{interface_name}", 'method': method.lower() + name_clean}),
+                Xmlnode('resources', nodes=[
+                    Xmlnode('resource', attributes={'ref': 'anonymous'})
+                ])
+            ])
+        ])
+        self.add_xml('etc/webapi.xml', webapi)
 
-		WARNING. This api is public. Acl will be added soon.
-	"""
-	API_METHOD_CHOISES = [
-		('POST', 'POST'),
-		('GET', 'GET'),
-		('PUT', 'PUT'),
-		('DELETE', 'DELETE'),
-	]
-
-	def add(self, api_name, api_method='GET',extra_params=None):
-
-		methodname = api_name;
-		url = '/V1/'+ self._module.package.lower() + '-' + self._module.name.lower()+'/'+api_name.lower();
-		resource = 'anonymous';
-		description = api_method + ' for ' + api_name + ' api'
-
-
-		management_interface = InterfaceClass('Api\\' + methodname + 'ManagementInterface')
-		management_interface.add_method(InterfaceMethod(api_method.lower() + upperfirst(api_name),params=['$param'],docstring=[description,'@param string $param','@return string']))
-
-		self.add_class(management_interface)
-		api_classname = management_interface.class_namespace
-
-
-		model = Phpclass(
-			'\\'.join(['Model',methodname + 'Management']),
-			 implements=['\\{}'.format(api_classname)])
-		model.add_method(Phpmethod(
-			api_method.lower() + upperfirst(api_name),
-			params=['$param'],
-			docstring=['{@inheritdoc}'],
-			body="return 'hello api " + api_method + " return the $param ' . $param;"
-		))
-
-		self.add_class(model)
-		model_classname = model.class_namespace
-
-
-		di_xml = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[
-			Xmlnode('preference', attributes={'for': api_classname, 'type': model_classname})
-		])
-
-		self.add_xml('etc/di.xml', di_xml)
-
-		webapi_xml = Xmlnode('routes', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Webapi:etc/webapi.xsd"}, nodes=[
-			Xmlnode('route', attributes={'url': url, 'method': api_method},match_attributes={'url','method'},nodes=[
-				Xmlnode('service',attributes={'class':api_classname,'method':api_method.lower() + upperfirst(api_name)}),
-				Xmlnode('resources',nodes=[
-					Xmlnode('resource', attributes={'ref':resource})
-				])
-			])
-		])
-
-		self.add_xml('etc/webapi.xml', webapi_xml)
-
-		self.add_static_file(
-			'.',
-			Readme(
-				specifications=" - API Endpoint\n\t- {} - {} > {}".format(api_method, api_classname, model_classname),
-			)
-		)
-
-		##Apiclass
-
-	@classmethod	
-	def params(cls):
-		return [
-			SnippetParam(name='api_name', required=True,
-				regex_validator= r'^\w+$',
-				error_message='Only alphanumeric and underscore characters are allowed'),
-			SnippetParam(name='api_method', choises=cls.API_METHOD_CHOISES, default='GET'),
-		]
-
-	@classmethod
-	def extra_params(cls):
-		return []	
+        self.add_static_file('.', Readme(specifications=f" - API: {method} {route_url}"))
