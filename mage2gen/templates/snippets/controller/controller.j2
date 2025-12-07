@@ -5,8 +5,11 @@ namespace {{ namespace }};
 
 use Magento\Framework\App\Action\HttpGetActionInterface;
 use Magento\Framework\View\Result\PageFactory;
+{% if admin %}
+use Magento\Backend\App\Action\Context;
+{% endif %}
 
-class {{ class_name }} implements HttpGetActionInterface
+class {{ class_name }} {% if admin %}extends {{ parent_class }}{% else %}implements {{ implements }}{% endif %}
 {
     /**
      * @var PageFactory
@@ -18,9 +21,10 @@ class {{ class_name }} implements HttpGetActionInterface
      *
      * @param PageFactory $resultPageFactory
      */
-    public function __construct(PageFactory $resultPageFactory)
+    public function __construct({{ ctor_args }})
     {
         $this->resultPageFactory = $resultPageFactory;
+        {{ parent_call }}
     }
 
     /**

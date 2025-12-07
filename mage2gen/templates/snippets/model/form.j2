@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">{{ table_name }}_form.{{ table_name }}_form_data_source</item>
+        </item>
+        <item name="label" xsi:type="string" translate="true">General Information</item>
+        <item name="template" xsi:type="string">templates/form/collapsible</item>
+    </argument>
+    <settings>
+        <buttons>
+            <button name="save" class="{{ package }}\{{ module }}\Block\Adminhtml\Post\Edit\SaveButton"/>
+            <button name="delete" class="{{ package }}\{{ module }}\Block\Adminhtml\Post\Edit\DeleteButton"/>
+            <button name="back" class="{{ package }}\{{ module }}\Block\Adminhtml\Post\Edit\BackButton"/>
+        </buttons>
+        <namespace>{{ table_name }}_form</namespace>
+        <dataScope>data</dataScope>
+        <deps>
+            <dep>{{ table_name }}_form.{{ table_name }}_form_data_source</dep>
+        </deps>
+    </settings>
+    <dataSource name="{{ table_name }}_form_data_source">
+        <argument name="data" xsi:type="array">
+            <item name="js_config" xsi:type="array">
+                <item name="component" xsi:type="string">Magento_Ui/js/form/provider</item>
+            </item>
+        </argument>
+        <settings>
+            <submitUrl path="*/*/save"/>
+        </settings>
+        <dataProvider class="{{ package }}\{{ module }}\Model\{{ model_name }}\DataProvider" name="{{ table_name }}_form_data_source">
+            <settings>
+                <requestFieldName>id</requestFieldName>
+                <primaryFieldName>{{ id_field }}</primaryFieldName>
+            </settings>
+        </dataProvider>
+    </dataSource>
+    <fieldset name="general">
+        <settings>
+            <label translate="true">General</label>
+        </settings>
+        {% for field in fields %}
+        <field name="{{ field.name }}" formElement="input">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="source" xsi:type="string">{{ model_name|lower }}</item>
+                </item>
+            </argument>
+            <settings>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">false</rule>
+                </validation>
+                <dataType>text</dataType>
+                <label translate="true">{{ field.name|capitalize }}</label>
+                <dataScope>{{ field.name }}</dataScope>
+            </settings>
+        </field>
+        {% endfor %}
+    </fieldset>
+</form>

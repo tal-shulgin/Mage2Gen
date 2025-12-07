@@ -1,0 +1,51 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\Api\SearchCriteriaInterface;
+use {{ interface_namespace }}\{{ interface_name }};
+
+interface {{ class_name }}
+{
+    /**
+     * Save {{ model_name }}
+     * @param \{{ interface_namespace }}\{{ interface_name }} ${{ var_name }}
+     * @return \{{ interface_namespace }}\{{ interface_name }}
+     * @throws \Magento\Framework\Exception\LocalizedException
+     */
+    public function save({{ interface_name }} ${{ var_name }});
+
+    /**
+     * Retrieve {{ model_name }}
+     * @param string ${{ id_field }}
+     * @return \{{ interface_namespace }}\{{ interface_name }}
+     * @throws \Magento\Framework\Exception\LocalizedException
+     */
+    public function get(${{ id_field }});
+
+    /**
+     * Retrieve {{ model_name }} matching the specified criteria.
+     * @param \Magento\Framework\Api\SearchCriteriaInterface $searchCriteria
+     * @return \{{ interface_namespace }}\{{ model_name }}SearchResultsInterface
+     * @throws \Magento\Framework\Exception\LocalizedException
+     */
+    public function getList(SearchCriteriaInterface $searchCriteria);
+
+    /**
+     * Delete {{ model_name }}
+     * @param \{{ interface_namespace }}\{{ interface_name }} ${{ var_name }}
+     * @return bool true on success
+     * @throws \Magento\Framework\Exception\LocalizedException
+     */
+    public function delete({{ interface_name }} ${{ var_name }});
+
+    /**
+     * Delete {{ model_name }} by ID
+     * @param string ${{ id_field }}
+     * @return bool true on success
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     * @throws \Magento\Framework\Exception\LocalizedException
+     */
+    public function deleteById(${{ id_field }});
+}

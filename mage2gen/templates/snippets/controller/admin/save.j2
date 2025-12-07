@@ -1,0 +1,108 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Backend\App\Action;
+use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Request\DataPersistorInterface;
+use Magento\Framework\Exception\LocalizedException;
+use {{ model_namespace }}\{{ model_name }};
+use {{ repository_interface }};
+
+class Save extends Action
+{
+    /**
+     * Authorization level of a basic admin session
+     *
+     * @see _isAllowed()
+     */
+    const ADMIN_RESOURCE = '{{ resource_id }}';
+
+    /**
+     * @var DataPersistorInterface
+     */
+    protected $dataPersistor;
+
+    /**
+     * @var {{ repository_interface|split('\\')|last }}
+     */
+    protected $repository;
+
+    /**
+     * @var {{ model_name }}Factory
+     */
+    protected $modelFactory;
+
+    /**
+     * @param Context $context
+     * @param DataPersistorInterface $dataPersistor
+     * @param {{ repository_interface|split('\\')|last }} $repository
+     * @param {{ model_name }}Factory $modelFactory
+     */
+    public function __construct(
+        Context $context,
+        DataPersistorInterface $dataPersistor,
+        {{ repository_interface|split('\\')|last }} $repository,
+        {{ model_name }}Factory $modelFactory
+    ) {
+        $this->dataPersistor = $dataPersistor;
+        $this->repository = $repository;
+        $this->modelFactory = $modelFactory;
+        parent::__construct($context);
+    }
+
+    /**
+     * Save action
+     *
+     * @return \Magento\Framework\Controller\ResultInterface
+     */
+    public function execute()
+    {
+        /** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
+        $resultRedirect = $this->resultRedirectFactory->create();
+        $data = $this->getRequest()->getPostValue();
+
+        if ($data) {
+            if (isset($data['is_active']) && $data['is_active'] === 'true') {
+                $data['is_active'] = true;
+            }
+            if (empty($data['{{ id_field }}'])) {
+                $data['{{ id_field }}'] = null;
+            }
+
+            /** @var {{ model_name }} $model */
+            $model = $this->modelFactory->create();
+
+            $id = $this->getRequest()->getParam('{{ id_field }}');
+            if ($id) {
+                try {
+                    $model = $this->repository->get($id);
+                } catch (LocalizedException $e) {
+                    $this->messageManager->addErrorMessage(__('This {{ model_name }} no longer exists.'));
+                    return $resultRedirect->setPath('*/*/');
+                }
+            }
+
+            $model->setData($data);
+
+            try {
+                $this->repository->save($model);
+                $this->messageManager->addSuccessMessage(__('You saved the {{ model_name }}.'));
+                $this->dataPersistor->clear('{{ table_name }}');
+                if ($this->getRequest()->getParam('back')) {
+                    return $resultRedirect->setPath('*/*/edit', ['{{ id_field }}' => $model->getId()]);
+                }
+                return $resultRedirect->setPath('*/*/');
+            } catch (LocalizedException $e) {
+                $this->messageManager->addErrorMessage($e->getMessage());
+            } catch (\Exception $e) {
+                $this->messageManager->addExceptionMessage($e, __('Something went wrong while saving the {{ model_name }}.'));
+            }
+
+            $this->dataPersistor->set('{{ table_name }}', $data);
+            return $resultRedirect->setPath('*/*/edit', ['{{ id_field }}' => $id]);
+        }
+        return $resultRedirect->setPath('*/*/');
+    }
+}

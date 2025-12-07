@@ -1,0 +1,24 @@
+    /** @var \Magento\Eav\Setup\EavSetup $eavSetup */
+    $eavSetup = $this->eavSetupFactory->create(['setup' => $this->moduleDataSetup]);
+
+    $eavSetup->addAttribute(
+        'customer', // Company attributes often attach here or use specific entity
+        '{{ attribute_code }}',
+        [
+            'type' => '{{ type }}',
+            'label' => '{{ label }}',
+            'input' => '{{ input }}',
+            'required' => {{ required }},
+            'system' => 0,
+            'global' => \Magento\Eav\Model\Entity\Attribute\ScopedAttributeInterface::SCOPE_GLOBAL,
+            'visible' => true,
+            'user_defined' => true,
+            'position' => 100,
+            'group' => 'General',
+        ]
+    );
+    
+    // Add to Forms
+    $attribute = $eavSetup->getEavConfig()->getAttribute('customer', '{{ attribute_code }}');
+    $attribute->setData('used_in_forms', ['adminhtml_customer', 'customer_account_create', 'customer_account_edit']);
+    $attribute->save();

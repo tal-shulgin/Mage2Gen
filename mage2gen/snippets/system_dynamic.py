@@ -32,7 +32,8 @@ class SystemDynamicRowSnippet(Snippet):
             'class_name': block_name,
             'columns': col_list
         })
-        self.add_static_file(f"Block/Adminhtml/System/Config/Field/{block_name}.php", StaticFile(f"{block_name}.php", body=content))
+
+        self.add_static_file("Block/Adminhtml/System/Config/Field", StaticFile(f"{block_name}.php", body=content))
 
         # 3. System XML (Reuse logic logic via Xmlnode construction)
         resource_id = f"{self.module_name}::config_{section.lower()}"

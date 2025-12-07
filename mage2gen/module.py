@@ -7,7 +7,7 @@ from collections import defaultdict, OrderedDict
 from xml.etree.ElementTree import Element, SubElement, tostring, ElementTree
 from xml.dom import minidom
 
-from .utils import upperfirst
+from .utils import upperfirst, merge_xml_files
 from .core.template import TemplateEngine
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
@@ -275,8 +275,17 @@ class Xmlnode:
             os.makedirs(os.path.dirname(xml_path))
         except Exception:
             pass
+        
+        new_content = self.generate()
+        
+        # V3 FIX: Merge with existing file if present
+        if os.path.exists(xml_path):
+            final_content = merge_xml_files(xml_path, new_content)
+        else:
+            final_content = new_content
+
         with open(xml_path, 'w+', encoding='utf-8') as xml_file:
-            xml_file.writelines(self.generate())
+            xml_file.write(final_content)
 
 ###############################################################################
 # StaticFile
@@ -373,136 +382,123 @@ class Readme:
             static_file.writelines(self.generate())
 
 ###############################################################################
-# GraphQl
+# GraphQl (Refactored for V3)
 ###############################################################################
 class GraphQlSchema:
-    template_file = os.path.join(TEMPLATE_DIR, 'graphqlschema.tmpl')
     def __init__(self):
         self.object_types = []
+    
     def __add__(self, other):
         for object_type in other.object_types:
             self.add_objecttype(object_type)
         return self
+        
     def add_objecttype(self, object_type):
         if object_type in self.object_types:
-            object_type_index = self.object_types.index(object_type)
-            self.object_types[object_type_index] = self.object_types[object_type_index] + object_type
+            index = self.object_types.index(object_type)
+            self.object_types[index] = self.object_types[index] + object_type
         else:
             self.object_types.append(object_type)
-    def context_data(self):
-        object_types = '\n\n'.join(t.generate() for t in self.object_types)
-        if object_types:
-            object_types = '\n' + object_types
-        return {'object_types': object_types}
+            
     def generate(self):
-        with open(self.template_file, 'rb') as tmpl:
-            template = tmpl.read().decode('utf-8')
-        return template.format(**self.context_data()).replace('\t', '    ')
+        object_types = '\n\n'.join(t.generate() for t in self.object_types)
+        return TemplateEngine.render('graphql/schema_core.j2', {'object_types': object_types})
+        
     def save(self, path):
         try:
             os.makedirs(os.path.dirname(path))
         except Exception:
             pass
-        with open(path, 'w+', encoding='utf-8') as class_file:
-            class_file.writelines(self.generate())
+        with open(path, 'w+', encoding='utf-8') as f:
+            f.write(self.generate())
 
 class GraphQlObjectType:
     def __init__(self, type, **kwargs):
         self.type = type
         self.type_declaration = kwargs.get('type_declaration', 'type')
         self.body = [kwargs.get('body', '')]
-        self.end_body = [kwargs.get('end_body', '')]
-        self.template_file = os.path.join(TEMPLATE_DIR, 'graphqlobject.tmpl')
         self.object_items = []
+        
     def __eq__(self, other):
         return self.type == other.type
+        
     def __add__(self, other):
         for item in other.object_items:
             self.add_objectitem(item)
         for code in other.body:
             if code not in self.body:
                 self.body.append(code)
-        for code in other.end_body:
-            if code not in self.end_body:
-                self.end_body.insert(0, code)
         return self
-    def __hash__(self):
-        return hash(self.type)
+        
     def add_objectitem(self, object_item):
         if object_item in self.object_items:
-            object_type_index = self.object_items.index(object_item)
-            self.object_items[object_type_index] = self.object_items[object_type_index] + object_item
+            index = self.object_items.index(object_item)
+            self.object_items[index] = self.object_items[index] + object_item
         else:
             self.object_items.append(object_item)
-    def body_code(self):
-        body_string = ''
-        for body_code in self.body:
-            if body_code:
-                body_string += '\n\t'.join(s.strip('\t') for s in body_code.splitlines()) + '\n\n\t'
-        return body_string.strip()
-    def context_data(self):
-        object_items = '\n'.join(i.generate() for i in self.object_items)
-        if object_items:
-            object_items = '\n' + object_items
-        return {'type_declaration': self.type_declaration, 'type': self.type, 'object_items': object_items, 'body': self.body_code()}
+            
     def generate(self):
-        with open(self.template_file, 'rb') as tmpl:
-            template = tmpl.read().decode('utf-8')
-        return template.format(**self.context_data()).replace('\t', '    ')
+        object_items = '\n'.join(i.generate() for i in self.object_items)
+        body_str = '\n'.join(self.body)
+        return TemplateEngine.render('graphql/object.j2', {
+            'type_declaration': self.type_declaration,
+            'type': self.type,
+            'object_items': object_items,
+            'body': body_str
+        })
+    
+    def save(self, path):
+        # Delegate to Schema logic usually, but supports standalone save
+        pass
 
 class GraphQlObjectItem:
     def __init__(self, item_identifier, **kwargs):
         self.item_identifier = item_identifier
         self.item_type = kwargs.get('item_type', 'String')
-        if self.item_type:
-            self.item_type = ': ' + self.item_type
+        self.base_type = kwargs.get('base_type', '')
         self.item_arguments = kwargs.get('item_arguments', '')
         self.item_resolver = kwargs.get('item_resolver', '')
         self.item_description = kwargs.get('description', '')
-        self.item_input = kwargs.get('item_input', '')
-        self.base_type = kwargs.get('base_type', '')
-        if self.item_description:
-            if self.base_type == 'Mutation':
-                self.item_description = '@doc(description: "Input {}.")'.format(self.item_description)
-            else:
-                self.item_description = '@doc(description: "Query by {}.")'.format(self.item_description)
         self.item_cache_identity = kwargs.get('item_cache_identity', '')
         self.body = [kwargs.get('body', '')]
-        self.end_body = [kwargs.get('end_body', '')]
-        self.template_file = os.path.join(TEMPLATE_DIR, 'graphqlobjectitem.tmpl')
+        
+        # Process Decorators
+        if self.item_description:
+            desc = self.item_description
+            if self.base_type == 'Mutation':
+                self.item_description = f'@doc(description: "Input {desc}.")'
+            else:
+                self.item_description = f'@doc(description: "Query by {desc}.")'
+                
         if self.item_resolver:
-            self.item_resolver = '@resolver( class: "{item_resolver}")'.format(item_resolver=self.item_resolver)
+            self.item_resolver = f'@resolver(class: "{self.item_resolver}")'
+            
         if self.item_cache_identity:
-            self.item_cache_identity = '@cache( cacheIdentity: "{item_cache_identity}")'.format(item_cache_identity=self.item_cache_identity)
-        if self.item_arguments:
-            arguments = []
-            for argument in self.item_arguments.split(','):
-                if self.base_type == 'Mutation':
-                    arguments.append('\t\t\t{argument}: String @doc(description: "Input {argument}.")'.format(argument=argument))
-                else:
-                    arguments.append('\t\t\t{argument}: String @doc(description: "Query by {argument}.")'.format(argument=argument))
-            self.item_arguments = '(\n' + ",\n".join(arguments) + '\n\t)'
-        if self.item_input:
-            self.item_arguments = '(input: {item_input})'.format(item_input=self.item_input)
+            self.item_cache_identity = f'@cache(cacheIdentity: "{self.item_cache_identity}")'
+            
+        # Process Arguments
+        if self.item_arguments and ',' in self.item_arguments:
+            args = []
+            for arg in self.item_arguments.split(','):
+                args.append(f'{arg}: String')
+            self.item_arguments = '(\n' + ",\n".join(args) + '\n)'
+            
     def __eq__(self, other):
         return self.item_identifier == other.item_identifier
+        
     def __add__(self, other):
-        for code in other.body:
-            if code not in self.body:
-                self.body.append(code)
-        for code in other.item_identifier:
-            if code not in self.item_identifier:
-                self.body.append(code)
-        for code in other.end_body:
-            if code not in self.end_body:
-                self.end_body.insert(0, code)
         return self
-    def __hash__(self):
-        return hash(self.item_type)
+        
     def generate(self):
-        with open(self.template_file, 'rb') as tmpl:
-            template = tmpl.read().decode('utf-8')
-        return template.format(item_identifier=self.item_identifier, item_type=self.item_type, item_resolver=self.item_resolver, item_description=self.item_description, item_cache_identity=self.item_cache_identity, item_arguments=self.item_arguments).replace('\t', '    ')
+        return TemplateEngine.render('graphql/item.j2', {
+            'item_identifier': self.item_identifier,
+            'item_arguments': self.item_arguments,
+            'item_type': self.item_type,
+            'item_resolver': self.item_resolver,
+            'item_description': self.item_description,
+            'item_cache_identity': self.item_cache_identity,
+            'body': "\n".join(self.body)
+        })
 
 ###############################################################################
 # Module

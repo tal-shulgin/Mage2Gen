@@ -1,20 +1,3 @@
-# A Magento 2 module generator library
-# Copyright (C) 2019 Mr. Lewis
-#
-# This file is part of Mage2Gen.
-#
-# Mage2Gen is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 from .. import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, Snippet, SnippetParam, Readme
 from ..utils import upperfirst
@@ -24,25 +7,24 @@ class PageBuilderContentTypeSnippet(Snippet):
     snippet_label = 'PageBuilder Content Type'
 
     description = """
-	Page Builder comes with several content types (controls) you can use to build your storefront pages. In this tutorial, you will add a new content type: a Quote control, which you can use to show customer testimonials or other types of quotations within your storefront.
+    Page Builder comes with several content types (controls) you can use to build your storefront pages. 
+    In this tutorial, you will add a new content type.
 
-	https://devdocs.magento.com/page-builder/docs/content-types/create/introduction.html
-	"""
+    https://devdocs.magento.com/page-builder/docs/content-types/create/introduction.html
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.count = 0
 
 
     def add(self, content_type_name, field_name, extra_params=None):
-		# create layout.xml
         content_type_code = content_type_name.replace('_', '').lower()
-
         field_element_type = 'input'
         field_data_type = 'text'
         field_label = upperfirst(field_name)
 
-        # form layout.xml
-        self.add_xml('view/adminhtml/layout/pagebuilder_{}_{}_form.xml'.format(self._module.package.lower(), content_type_code),
+        # Form Layout
+        self.add_xml(f'view/adminhtml/layout/pagebuilder_{self._module.package.lower()}_{content_type_code}_form.xml',
             Xmlnode('page', attributes={'xsi:noNamespaceSchemaLocation': "urn:magento:framework:View/Layout/etc/page_configuration.xsd"}, nodes=[
                 Xmlnode('update', attributes={'handle': 'styles'}),
                 Xmlnode('body', nodes=[
@@ -277,21 +259,18 @@ class PageBuilderContentTypeSnippet(Snippet):
         ])
         self.add_xml('view/adminhtml/ui_component/pagebuilder_{}_{}_form.xml'.format(self._module.package.lower(), content_type_code), ui_form)
 
+        # FIX: Update template extensions from .tmpl to .j2
         self.add_static_file('view/adminhtml/web/template/content-type/{}/default/'.format(content_type_code),
-            StaticFile('master.html', template_file='pagebuilder/master.tmpl', context_data={'field_name': field_name, 'content_type_code':content_type_code})
+            StaticFile('master.html', template_file='pagebuilder/master.j2', context_data={'field_name': field_name, 'content_type_code':content_type_code})
         )
 
         self.add_static_file('view/adminhtml/web/template/content-type/{}/default/'.format(content_type_code),
-            StaticFile('preview.html', template_file='pagebuilder/preview.tmpl', context_data={'field_name': field_name, 'content_type_code':content_type_code})
+            StaticFile('preview.html', template_file='pagebuilder/preview.j2', context_data={'field_name': field_name, 'content_type_code':content_type_code})
         )
 
-        etc_module = Xmlnode('config', attributes={
-            'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Module/etc/module.xsd"
-        }, nodes=[
+        etc_module = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Module/etc/module.xsd"}, nodes=[
             Xmlnode('module', attributes={'name': self.module_name}, nodes=[
-                Xmlnode('sequence', attributes={}, nodes=[
-                    Xmlnode('module', attributes={'name': 'Magento_PageBuilder'})
-                ])
+                Xmlnode('sequence', attributes={}, nodes=[Xmlnode('module', attributes={'name': 'Magento_PageBuilder'})])
             ])
         ])
         self.add_xml('etc/module.xml', etc_module)
@@ -316,6 +295,8 @@ class PageBuilderContentTypeSnippet(Snippet):
             ])
         ])
         self.add_xml('etc/adminhtml/di.xml',di_xml)
+
+        self.add_static_file('.', Readme(specifications=" - PageBuilder Content Type: {}".format(content_type_name)))
 
     @classmethod
     def params(cls):

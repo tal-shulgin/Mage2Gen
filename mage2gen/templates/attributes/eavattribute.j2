@@ -1,0 +1,31 @@
+        $eavSetup->addAttribute(
+            \{{ entity_type }},
+            '{{ attribute_code }}',
+            [
+                'type' => '{{ value_type }}',
+                'label' => '{{ attribute_label }}',
+                'input' => '{{ frontend_input }}',
+                'required' => {{ required }},
+                'sort_order' => {{ sort_order }},
+                'global' => \Magento\Eav\Model\Entity\Attribute\ScopedAttributeInterface::SCOPE_GLOBAL,
+                'user_defined' => {{ user_defined }},
+                'unique' => {{ unique }},
+                'default' => {{ default }},
+                'system' => 0,
+                {% if backend %}
+                'backend' => '{{ backend }}',
+                {% endif %}
+                {% if source_model and source_model != "''" %}
+                'source' => {{ source_model }},
+                {% endif %}
+                {% if options_array %}
+                'option' => [
+                    'values' => [
+                        {% for opt in options_array %}
+                        "{{ opt }}",
+                        {% endfor %}
+                    ]
+                ]
+                {% endif %}
+            ]
+        );

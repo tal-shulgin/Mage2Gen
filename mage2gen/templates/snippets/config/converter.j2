@@ -1,0 +1,38 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+class {{ class_name }} implements \Magento\Framework\Config\ConverterInterface
+{
+    /**
+     * Convert dom node tree to array
+     *
+     * @param \DOMDocument $source
+     * @return array
+     */
+    public function convert($source)
+    {
+        $output = [];
+        $xpath = new \DOMXPath($source);
+        $nodes = $xpath->evaluate('/config/{{ node_name }}');
+
+        /** @var \DOMNode $node */
+        foreach ($nodes as $node) {
+            $nodeId = $node->attributes->getNamedItem('id')->nodeValue;
+
+            $data = [];
+            $data['id'] = $nodeId;
+            foreach ($node->childNodes as $childNode) {
+                if ($childNode->nodeType !== XML_ELEMENT_NODE) {
+                    continue;
+                }
+
+                $data[$childNode->nodeName] = $childNode->nodeValue;
+            }
+            $output['{{ node_name }}'][$nodeId] = $data;
+        }
+
+        return $output;
+    }
+}

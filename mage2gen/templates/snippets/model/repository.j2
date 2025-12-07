@@ -1,0 +1,131 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface;
+use Magento\Framework\Api\SearchCriteriaInterface;
+use Magento\Framework\Exception\CouldNotDeleteException;
+use Magento\Framework\Exception\CouldNotSaveException;
+use Magento\Framework\Exception\NoSuchEntityException;
+use {{ interface_namespace }}\{{ interface_name }};
+use {{ interface_namespace }}\{{ interface_name }}Factory;
+use {{ interface_namespace }}\{{ model_name }}SearchResultsInterfaceFactory;
+use {{ resource_namespace }}\{{ resource_name }} as ResourceModel;
+use {{ collection_namespace }}\{{ collection_name }}Factory as CollectionFactory;
+
+class {{ class_name }} implements \{{ repository_interface }}
+{
+    /**
+     * @var ResourceModel
+     */
+    protected $resource;
+
+    /**
+     * @var {{ interface_name }}Factory
+     */
+    protected $modelFactory;
+
+    /**
+     * @var CollectionFactory
+     */
+    protected $collectionFactory;
+
+    /**
+     * @var {{ model_name }}SearchResultsInterfaceFactory
+     */
+    protected $searchResultsFactory;
+
+    /**
+     * @var CollectionProcessorInterface
+     */
+    protected $collectionProcessor;
+
+    /**
+     * @param ResourceModel $resource
+     * @param {{ interface_name }}Factory $modelFactory
+     * @param CollectionFactory $collectionFactory
+     * @param {{ model_name }}SearchResultsInterfaceFactory $searchResultsFactory
+     * @param CollectionProcessorInterface $collectionProcessor
+     */
+    public function __construct(
+        ResourceModel $resource,
+        {{ interface_name }}Factory $modelFactory,
+        CollectionFactory $collectionFactory,
+        {{ model_name }}SearchResultsInterfaceFactory $searchResultsFactory,
+        CollectionProcessorInterface $collectionProcessor
+    ) {
+        $this->resource = $resource;
+        $this->modelFactory = $modelFactory;
+        $this->collectionFactory = $collectionFactory;
+        $this->searchResultsFactory = $searchResultsFactory;
+        $this->collectionProcessor = $collectionProcessor;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function save({{ interface_name }} ${{ var_name }})
+    {
+        try {
+            $this->resource->save(${{ var_name }});
+        } catch (\Exception $exception) {
+            throw new CouldNotSaveException(__(
+                'Could not save the {{ model_name|lower }}: %1',
+                $exception->getMessage()
+            ));
+        }
+        return ${{ var_name }};
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function get(${{ id_field }})
+    {
+        ${{ var_name }} = $this->modelFactory->create();
+        $this->resource->load(${{ var_name }}, ${{ id_field }});
+        if (!${{ var_name }}->getId()) {
+            throw new NoSuchEntityException(__('{{ model_name }} with id "%1" does not exist.', ${{ id_field }}));
+        }
+        return ${{ var_name }};
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getList(SearchCriteriaInterface $criteria)
+    {
+        $collection = $this->collectionFactory->create();
+        $this->collectionProcessor->process($criteria, $collection);
+        $searchResults = $this->searchResultsFactory->create();
+        $searchResults->setSearchCriteria($criteria);
+        $searchResults->setItems($collection->getItems());
+        $searchResults->setTotalCount($collection->getSize());
+        return $searchResults;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function delete({{ interface_name }} ${{ var_name }})
+    {
+        try {
+            $this->resource->delete(${{ var_name }});
+        } catch (\Exception $exception) {
+            throw new CouldNotDeleteException(__(
+                'Could not delete the {{ model_name|lower }}: %1',
+                $exception->getMessage()
+            ));
+        }
+        return true;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function deleteById(${{ id_field }})
+    {
+        return $this->delete($this->get(${{ id_field }}));
+    }
+}

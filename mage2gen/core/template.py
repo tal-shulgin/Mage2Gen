@@ -13,6 +13,10 @@ class TemplateEngine:
                 trim_blocks=True,
                 lstrip_blocks=True
             )
+            # Register custom filters
+            # 'split' is needed for namespace parsing in Logic Injector templates
+            cls._env.filters['split'] = lambda value, delimiter=None: value.split(delimiter)
+            
         return cls._env
 
     @classmethod

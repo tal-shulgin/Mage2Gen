@@ -89,7 +89,8 @@ def controller(
     frontname: str = typer.Option(None, help="Frontname"),
     section: str = typer.Option("index", help="Section"),
     action: str = typer.Option("index", help="Action"),
-    admin: bool = typer.Option(False, help="Is Admin?")
+    admin: bool = typer.Option(False, help="Is Admin?"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
 ):
     from mage2gen import Module
     from mage2gen.snippets.controller import ControllerSnippet
@@ -440,6 +441,75 @@ def graphql(
     from mage2gen.snippets.graphqlendpoint import GraphQlEndpointSnippet
     mod = Module(package, module)
     GraphQlEndpointSnippet(mod).add(base_type=type, identifier=name)
+    mod.generate_module(output_dir)
+
+@app.command("product-type")
+def product_type(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    code: str = typer.Option(..., help="Type Code (e.g. ebook)"),
+    label: str = typer.Option(..., help="Label"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.producttype import ProductTypeSnippet
+    mod = Module(package, module)
+    ProductTypeSnippet(mod).add(code, label)
+    mod.generate_module(output_dir)
+
+@app.command("company-attribute")
+def company_attribute(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    code: str = typer.Option(..., help="Code"),
+    label: str = typer.Option(..., help="Label"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.companyattribute import CompanyAttributeSnippet
+    mod = Module(package, module)
+    CompanyAttributeSnippet(mod).add(attribute_label=label, extra_params={'attribute_code': code})
+    mod.generate_module(output_dir)
+
+@app.command("eav-entity")
+def eav_entity(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    name: str = typer.Option(..., help="Entity Name"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.eaventity import EavEntitySnippet
+    mod = Module(package, module)
+    EavEntitySnippet(mod).add(entity_name=name, adminhtml_grid=True, adminhtml_form=True)
+    mod.generate_module(output_dir)
+
+@app.command("configuration-type")
+def configuration_type(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    config_name: str = typer.Option(..., help="Config Name (e.g. events)"),
+    node_name: str = typer.Option(..., help="Node Name (e.g. event)"),
+    field_name: str = typer.Option(..., help="Field Name (e.g. name)"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.configurationtype import ConfigurationTypeSnippet
+    mod = Module(package, module)
+    ConfigurationTypeSnippet(mod).add(config_name=config_name, node_name=node_name, field_name=field_name)
+    mod.generate_module(output_dir)
+
+@app.command()
+def language(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    language: str = typer.Option(..., help="Language Code (e.g. nl_NL)"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.language import LanguageSnippet
+    mod = Module(package, module)
+    LanguageSnippet(mod).add(language)
     mod.generate_module(output_dir)
 
 if __name__ == "__main__":

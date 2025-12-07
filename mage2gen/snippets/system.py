@@ -4,40 +4,83 @@ from ..utils import upperfirst
 
 class SystemSnippet(Snippet):
     snippet_label = 'System Config'
-    description = "Add a System Configuration field."
+    description = "Add a System Configuration field with advanced options (scope, validation, encryption, rich types)."
+
+    def _map_validation(self, validate_str):
+        """Maps friendly aliases to Magento CSS validation classes."""
+        if not validate_str:
+            return None
+            
+        aliases = {
+            'required': 'required-entry',
+            'email': 'validate-email',
+            'number': 'validate-number',
+            'digits': 'validate-digits',
+            'url': 'validate-url',
+            'alpha': 'validate-alpha',
+            'alphanum': 'validate-alphanum',
+            'no-empty': 'no-whitespace',
+            'zero-or-greater': 'validate-zero-or-greater'
+        }
+        
+        classes = []
+        for v in validate_str.split(','):
+            v = v.strip()
+            classes.append(aliases.get(v, v)) # Use alias if exists, else raw string
+            
+        return " ".join(classes)
 
     def add(self, 
         tab, section, group, field, 
-        field_type="text", 
+        type="text", 
+        scope="default,website,store",
+        validate=None,
+        comment=None,
+        encrypt=False,
         default_value="", 
         create_tab=False,
         depends=None,
         **kwargs
     ):
-        original_type = field_type
-        type = field_type
+        # Support legacy argument name 'field_type'
+        if 'field_type' in kwargs: type = kwargs['field_type']
         
-        # Data Preparation
-        tab_data = {'id': tab.lower(), 'label': upperfirst(tab), 'sortOrder': 100} if create_tab else {'id': tab}
-        section_data = {'id': section.lower(), 'label': upperfirst(section), 'sortOrder': 10, 'showInDefault': 1, 'showInWebsite': 1, 'showInStore': 1}
-        group_data = {'id': group.lower(), 'label': upperfirst(group), 'sortOrder': 10, 'showInDefault': 1, 'showInWebsite': 1, 'showInStore': 1}
+        original_type = type
         
-        # Source Model mapping
-        source_model = ''
-        backend_model = ''
-        frontend_model = ''
+        # Helper for class naming
+        def camel_case(s):
+            return "".join(x.capitalize() for x in s.split('_'))
+
+        # 1. Scope Logic
+        if scope == 'global':
+            show_default, show_website, show_store = '1', '0', '0'
+        else:
+            show_default = '1' if 'default' in scope else '0'
+            show_website = '1' if 'website' in scope else '0'
+            show_store = '1' if 'store' in scope else '0'
+
+        # 2. Validation Logic
+        validation_classes = self._map_validation(validate)
+
+        # 3. Source/Backend/Frontend Model Initialization
+        source_model = kwargs.get('source_model', '')
+        backend_model = kwargs.get('backend_model', '')
+        frontend_model = kwargs.get('frontend_model', '')
         upload_dir_node = None
         
+        # 4. Rich Type Logic
         if type in ['select', 'multiselect']:
-            source_model = 'Magento\\Config\\Model\\Config\\Source\\Yesno'
+            if not source_model:
+                source_model = 'Magento\\Config\\Model\\Config\\Source\\Yesno'
+                
         elif type == 'email':
-            # Magento's default source model for email templates
+            # Maps 'email' type to a selector for Email Templates
             source_model = 'Magento\\Config\\Model\\Config\\Source\\Email\\Template'
             type = 'select'
 
         elif type == 'image':
-            # Image Upload Logic
-            backend_class_name = f"{upperfirst(field)}Image"
+            # Generates a custom Backend Model to handle image upload saving
+            backend_class_name = f"{camel_case(field)}Image"
             ns_backend = f"{self._module.package}\\{self._module.name}\\Model\\Config\\Backend"
             backend_model = f"{ns_backend}\\{backend_class_name}"
             
@@ -46,13 +89,15 @@ class SystemSnippet(Snippet):
                 'class_name': backend_class_name,
                 'upload_dir': f"{section}/{group}"
             })
-            self.add_static_file(f"Model/Config/Backend/{backend_class_name}.php", StaticFile(f"{backend_class_name}.php", body=content))
+
+            # FIX: Path must be directory only
+            self.add_static_file("Model/Config/Backend", StaticFile(f"{backend_class_name}.php", body=content))
             upload_dir_node = Xmlnode('upload_dir', attributes={'config': 'system/filesystem/media', 'scope_info': '1'}, node_text=f"{section}/{group}")
             
         elif type == 'color':
-            # Color Picker Logic
+            # Generates a Frontend Block to render the color picker JS
             type = 'text'
-            frontend_class_name = f"{upperfirst(field)}Color"
+            frontend_class_name = f"{camel_case(field)}Color"
             ns_frontend = f"{self._module.package}\\{self._module.name}\\Block\\Adminhtml\\System\\Config\\Field"
             frontend_model = f"{ns_frontend}\\{frontend_class_name}"
             
@@ -60,14 +105,29 @@ class SystemSnippet(Snippet):
                 'namespace': ns_frontend,
                 'class_name': frontend_class_name
             })
-            self.add_static_file(f"Block/Adminhtml/System/Config/Field/{frontend_class_name}.php", StaticFile(f"{frontend_class_name}.php", body=content))
+
+            # FIX: Path must be directory only
+            self.add_static_file("Block/Adminhtml/System/Config/Field", StaticFile(f"{frontend_class_name}.php", body=content))
+
+        # 5. Encryption/Security Logic
+        # Note: If type was 'image' or 'color', encryption usually doesn't apply, so we prioritize those.
+        # But if type is basic text/obscure, we apply encryption.
+        if encrypt or type == 'password':
+            type = 'obscure'
+            if not backend_model:
+                backend_model = 'Magento\\Config\\Model\\Config\\Backend\\Encrypted'
+
+        # --- XML Construction ---
 
         resource_id = f"{self.module_name}::config_{section.lower()}"
 
-        # 1. System XML
+        # Build Field Nodes
         field_nodes = [
-            Xmlnode('label', node_text=upperfirst(field))
+            Xmlnode('label', node_text=upperfirst(field.replace('_', ' ')))
         ]
+        
+        if comment: field_nodes.append(Xmlnode('comment', node_text=comment))
+        if validation_classes: field_nodes.append(Xmlnode('validate', node_text=validation_classes))
         if source_model: field_nodes.append(Xmlnode('source_model', node_text=source_model))
         if backend_model: field_nodes.append(Xmlnode('backend_model', node_text=backend_model))
         if frontend_model: field_nodes.append(Xmlnode('frontend_model', node_text=frontend_model))
@@ -82,11 +142,20 @@ class SystemSnippet(Snippet):
                 Xmlnode('field', attributes={'id': dep_field}, node_text=dep_val)
             ]))
 
+        # 1. System XML
         system_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Config:etc/system_file.xsd"}, nodes=[
             Xmlnode('system', nodes=[
                 Xmlnode('section', attributes={'id': section.lower()}, nodes=[
                     Xmlnode('group', attributes={'id': group.lower()}, nodes=[
-                        Xmlnode('field', attributes={'id': field.lower(), 'type': type, 'translate': 'label', 'sortOrder': '10', 'showInDefault': '1', 'showInWebsite': '1', 'showInStore': '1'}, nodes=field_nodes)
+                        Xmlnode('field', attributes={
+                            'id': field.lower(), 
+                            'type': type, 
+                            'translate': 'label', 
+                            'sortOrder': '10', 
+                            'showInDefault': show_default, 
+                            'showInWebsite': show_website, 
+                            'showInStore': show_store
+                        }, nodes=field_nodes)
                     ])
                 ])
             ])
@@ -118,8 +187,8 @@ class SystemSnippet(Snippet):
         ])
         self.add_xml('etc/acl.xml', acl_node)
 
-        # 3. Config XML
-        if default_value:
+        # 3. Config XML (Avoid defaults for encrypted fields)
+        if default_value and not encrypt:
             default_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Store:etc/config.xsd"}, nodes=[
                 Xmlnode('default', nodes=[
                     Xmlnode(section.lower(), nodes=[
@@ -131,7 +200,7 @@ class SystemSnippet(Snippet):
             ])
             self.add_xml('etc/config.xml', default_node)
 
-        # 4. Email Template (Re-integration)
+        # 4. Email Template Logic (Legacy support for 'email' type)
         if original_type == 'email':
             template_id = f"{section.lower()}_{group.lower()}_{field.lower()}"
             template_file = f"{field.lower()}.html"
@@ -144,7 +213,7 @@ class SystemSnippet(Snippet):
                     'label': upperfirst(field),
                     'file': template_file,
                     'type': 'html',
-                    'module': self.module_name,
+                    'module': f"{self._module.package}_{self._module.name}",
                     'area': 'frontend'
                 })
             ])
@@ -155,19 +224,24 @@ class SystemSnippet(Snippet):
                 'label': upperfirst(field),
                 'field_id': field
             })
-            self.add_static_file(f"view/frontend/email/{template_file}", StaticFile(template_file, body=html_content))
+            # FIX: Path must be directory only
+            self.add_static_file("view/frontend/email", StaticFile(template_file, body=html_content))
 
-            # Generate Helper
-            helper_name = f"{upperfirst(field)}Mail"
+            helper_name = f"{camel_case(field)}Mail"
             namespace = f"{self._module.package}\\{self._module.name}\\Helper"
             
             helper_content = TemplateEngine.render('snippets/system/helper_mail.j2', {
                 'namespace': namespace,
                 'class_name': helper_name,
                 'template_label': upperfirst(field),
-                'method_name': upperfirst(field),
+                'method_name': camel_case(field),
                 'config_path': config_path
             })
-            self.add_static_file(f"Helper/{helper_name}.php", StaticFile(f"{helper_name}.php", body=helper_content))
+            # FIX: Path must be directory only
+            self.add_static_file("Helper", StaticFile(f"{helper_name}.php", body=helper_content))
 
-        self.add_static_file('.', Readme(specifications=f" - Config: {section}/{group}/{field}"))
+        specs = f" - Config: {section}/{group}/{field} [{type}]"
+        if encrypt: specs += " (Encrypted)"
+        if scope != "default,website,store": specs += f" Scope: {scope}"
+        
+        self.add_static_file('.', Readme(specifications=specs))

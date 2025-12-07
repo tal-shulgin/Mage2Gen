@@ -1,0 +1,12 @@
+<div attr="data.main.attributes" ko-style="data.main.style" css="data.main.css">
+    <h2 if="data.{{ field_name }}.html" html="data.{{ field_name }}.html"></h2>
+</div>
+</file>
+
+<file path="mage2gen/templates/pagebuilder/preview.j2">
+<div attr="data.main.attributes" ko-style="data.main.style" css="data.main.css">
+    <h2 if="data.{{ field_name }}.html" html="data.{{ field_name }}.html"></h2>
+    <div ifnot="data.{{ field_name }}.html" class="pagebuilder-empty-placeholder">
+        {{ '{{' }} $t('Empty {{ content_type_code }}') {{ '}}' }}
+    </div>
+</div>

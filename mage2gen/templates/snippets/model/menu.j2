@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="{{ package }}::top_level" title="{{ package }}" module="{{ module_name }}" sortOrder="99" resource="Magento_Backend::content"/>
+        <add id="{{ package }}::{{ table_name }}" title="{{ model_name }}" module="{{ module_name }}" sortOrder="10" resource="{{ package }}_{{ module }}::{{ model_name }}" parent="{{ package }}::top_level" action="{{ route_id }}/{{ model_lower }}/index"/>
+    </menu>
+</config>

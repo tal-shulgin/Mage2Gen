@@ -31,7 +31,8 @@ class ApiSnippet(Snippet):
             'class_name': interface_name,
             'method_name': method.lower() + name_clean
         })
-        self.add_static_file(f"Api/{interface_name}", StaticFile(f"{interface_name}.php", body=if_content))
+
+        self.add_static_file("Api", StaticFile(f"{interface_name}.php", body=if_content))
         
         # 2. Model
         model_ns = f"{package}\\{module}\\Model"
@@ -42,7 +43,8 @@ class ApiSnippet(Snippet):
             'interface_name_short': interface_name,
             'method_name': method.lower() + name_clean
         })
-        self.add_static_file(f"Model/{model_name}", StaticFile(f"{model_name}.php", body=model_content))
+
+        self.add_static_file("Model", StaticFile(f"{model_name}.php", body=model_content))
         
         # 3. DI XML
         di = Xmlnode('config', attributes={'xmlns:xsi':'http://www.w3.org/2001/XMLSchema-instance','xsi:noNamespaceSchemaLocation':"urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=[

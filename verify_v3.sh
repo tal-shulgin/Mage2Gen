@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e # Exit on error
 
-# Ensure we are using the local code, not installed package
+# Ensure we are using the local code
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 
 CMD="python3 -m mage2gen.app"
 
-# 1. Cleanup previous run
+# 1. Cleanup
 rm -rf test_output
 mkdir test_output
 
@@ -22,7 +22,7 @@ $CMD module \
 echo "🚀 [2/5] Generating Admin CRUD (Post)..."
 $CMD admin-crud \
     --package Mage2Gen \
-    --name Blog \
+    --module Blog \
     --name Post \
     --fields "title:text,content:textarea,is_active:boolean,publish_date:date" \
     --output-dir test_output
@@ -37,21 +37,21 @@ $CMD system \
     --type select --default 1 --create-tab \
     --output-dir test_output
 
-# 4b. Color Picker (Frontend Model Check)
+# 4b. Color Picker
 $CMD system \
     --package Mage2Gen --module Blog \
     --tab blog_config --section general --group design --field header_color \
     --type color \
     --output-dir test_output
 
-# 4c. Image Upload (Backend Model Check)
+# 4c. Image Upload
 $CMD system \
     --package Mage2Gen --module Blog \
     --tab blog_config --section general --group design --field logo \
     --type image \
     --output-dir test_output
 
-# 4d. Field Dependency (XML Check)
+# 4d. Field Dependency
 $CMD system \
     --package Mage2Gen --module Blog \
     --tab blog_config --section general --group design --field show_logo \
@@ -59,7 +59,7 @@ $CMD system \
     --depends "enabled:1" \
     --output-dir test_output
 
-# 5. Generate Dynamic Row (The Boss Fight)
+# 5. Generate Dynamic Row
 echo "🚀 [4/5] Generating Dynamic Rows..."
 $CMD system-dynamic \
     --package Mage2Gen --module Blog \

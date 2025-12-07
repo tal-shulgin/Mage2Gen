@@ -3,29 +3,47 @@ declare(strict_types=1);
 
 namespace {{ namespace }};
 
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
+{% if not admin %}
+use Magento\Framework\App\Action\HttpGetActionInterface;
+use Magento\Framework\View\Result\PageFactory;
+{% endif %}
 
-class {{ class_name }} extends Command
+{% if admin %}
+use Magento\Backend\App\Action;
+use Magento\Backend\App\Action\Context;
+use Magento\Framework\View\Result\PageFactory;
+
+class {{ class_name }} extends Action
 {
+{% else %}
+class {{ class_name }} implements HttpGetActionInterface
+{
+{% endif %}
     /**
-     * @inheritDoc
+     * @var PageFactory
      */
-    protected function configure()
-    {
-        $this->setName('{{ command_name }}');
-        $this->setDescription('{{ description }}');
-        parent::configure();
+    protected $resultPageFactory;
+
+    /**
+     * Constructor
+     *
+     * @param PageFactory $resultPageFactory
+     */
+    public function __construct(
+        {% if admin %}Context $context,{% endif %}
+        PageFactory $resultPageFactory
+    ) {
+        $this->resultPageFactory = $resultPageFactory;
+        {% if admin %}parent::__construct($context);{% endif %}
     }
 
     /**
-     * @inheritDoc
+     * Execute view action
+     *
+     * @return \Magento\Framework\Controller\ResultInterface
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    public function execute()
     {
-        $output->writeln('Hello from {{ command_name }}');
-        return Command::SUCCESS;
+        return $this->resultPageFactory->create();
     }
 }
