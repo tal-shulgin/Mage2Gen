@@ -319,6 +319,26 @@ def system(
     )
     mod.generate_module(output_dir)
 
+@app.command("system-dynamic")
+def system_dynamic(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    tab: str = typer.Option(..., help="Tab ID"),
+    section: str = typer.Option(..., help="Section ID"),
+    group: str = typer.Option(..., help="Group ID"),
+    field: str = typer.Option(..., help="Field ID"),
+    columns: str = typer.Option(..., help="Columns (id:Label,id:Label)"),
+    create_tab: bool = typer.Option(False, help="Create Tab?"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    from mage2gen import Module
+    from mage2gen.snippets.system_dynamic import SystemDynamicRowSnippet
+    mod = Module(package, module)
+    SystemDynamicRowSnippet(mod).add(
+        tab, section, group, field, columns, create_tab=create_tab
+    )
+    mod.generate_module(output_dir)
+
 @app.command("admin-crud")
 def admin_crud(
     package: str = typer.Option(..., help="Package"),
