@@ -1,0 +1,44 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+class {{ class_name }} extends \Magento\Config\Model\Config\Backend\Image
+{
+    /**
+     * The tail part of directory path for uploading
+     */
+    const UPLOAD_DIR = '{{ upload_dir }}'; # e.g. 'catalog/product'
+
+    /**
+     * Return path to directory for upload file
+     *
+     * @return string
+     * @throws \Magento\Framework\Exception\LocalizedException
+     */
+    protected function _getUploadDir()
+    {
+        return $this->_mediaDirectory->getAbsolutePath($this->_appendScopeInfo(self::UPLOAD_DIR));
+    }
+
+    /**
+     * Makes a copy of the file and returns the path to the copy
+     *
+     * @return string|bool
+     * @throws \Exception
+     */
+    protected function _addWhetherScopeInfo()
+    {
+        return true;
+    }
+
+    /**
+     * Getter for allowed extensions of uploaded files
+     *
+     * @return array
+     */
+    protected function _getAllowedExtensions()
+    {
+        return ['jpg', 'jpeg', 'gif', 'png', 'svg'];
+    }
+}

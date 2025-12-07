@@ -303,12 +303,20 @@ def system(
     default: str = typer.Option("", help="Default Value"),
     create_tab: bool = typer.Option(False, help="Create Tab?"),
     source_model_options: str = typer.Option(None, help="Options"),
+    depends: str = typer.Option(None, help="Depends on field (e.g. enable:1)"),
     output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
 ):
     from mage2gen import Module
     from mage2gen.snippets.system import SystemSnippet
     mod = Module(package, module)
-    SystemSnippet(mod).add(tab, section, group, field, field_type=type, default_value=default, create_tab=create_tab, source_model_options=source_model_options)
+    SystemSnippet(mod).add(
+        tab, section, group, field, 
+        field_type=type, 
+        default_value=default, 
+        create_tab=create_tab, 
+        source_model_options=source_model_options,
+        depends=depends
+    )
     mod.generate_module(output_dir)
 
 @app.command("admin-crud")

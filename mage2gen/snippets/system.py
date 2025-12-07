@@ -11,8 +11,10 @@ class SystemSnippet(Snippet):
         field_type="text", 
         default_value="", 
         create_tab=False,
+        depends=None,
         **kwargs
     ):
+        original_type = field_type
         type = field_type
         
         # Data Preparation
@@ -22,36 +24,69 @@ class SystemSnippet(Snippet):
         
         # Source Model mapping
         source_model = ''
+        backend_model = ''
+        frontend_model = ''
+        upload_dir_node = None
+        
         if type in ['select', 'multiselect']:
             source_model = 'Magento\\Config\\Model\\Config\\Source\\Yesno'
         elif type == 'email':
             # Magento's default source model for email templates
             source_model = 'Magento\\Config\\Model\\Config\\Source\\Email\\Template'
-            # In system.xml, type is usually 'select' for email templates, not 'email'
             type = 'select'
 
-        field_data = {
-            'id': field.lower(),
-            'label': upperfirst(field.replace('_', ' ')),
-            'type': type,
-            'sortOrder': 10,
-            'showInDefault': 1, 'showInWebsite': 1, 'showInStore': 1,
-            'comment': '',
-            'source_model': source_model,
-            'backend_model': ''
-        }
-        
+        elif type == 'image':
+            # Image Upload Logic
+            backend_class_name = f"{upperfirst(field)}Image"
+            ns_backend = f"{self._module.package}\\{self._module.name}\\Model\\Config\\Backend"
+            backend_model = f"{ns_backend}\\{backend_class_name}"
+            
+            content = TemplateEngine.render('snippets/system/backend_image.j2', {
+                'namespace': ns_backend,
+                'class_name': backend_class_name,
+                'upload_dir': f"{section}/{group}"
+            })
+            self.add_static_file(f"Model/Config/Backend/{backend_class_name}.php", StaticFile(f"{backend_class_name}.php", body=content))
+            upload_dir_node = Xmlnode('upload_dir', attributes={'config': 'system/filesystem/media', 'scope_info': '1'}, node_text=f"{section}/{group}")
+            
+        elif type == 'color':
+            # Color Picker Logic
+            type = 'text'
+            frontend_class_name = f"{upperfirst(field)}Color"
+            ns_frontend = f"{self._module.package}\\{self._module.name}\\Block\\Adminhtml\\System\\Config\\Field"
+            frontend_model = f"{ns_frontend}\\{frontend_class_name}"
+            
+            content = TemplateEngine.render('snippets/system/frontend_color.j2', {
+                'namespace': ns_frontend,
+                'class_name': frontend_class_name
+            })
+            self.add_static_file(f"Block/Adminhtml/System/Config/Field/{frontend_class_name}.php", StaticFile(f"{frontend_class_name}.php", body=content))
+
         resource_id = f"{self.module_name}::config_{section.lower()}"
 
         # 1. System XML
+        field_nodes = [
+            Xmlnode('label', node_text=upperfirst(field))
+        ]
+        if source_model: field_nodes.append(Xmlnode('source_model', node_text=source_model))
+        if backend_model: field_nodes.append(Xmlnode('backend_model', node_text=backend_model))
+        if frontend_model: field_nodes.append(Xmlnode('frontend_model', node_text=frontend_model))
+        if upload_dir_node: field_nodes.append(upload_dir_node)
+        
+        # Dependency Logic
+        if depends:
+            parts = depends.split(':')
+            dep_field = parts[0]
+            dep_val = parts[1] if len(parts) > 1 else '1'
+            field_nodes.append(Xmlnode('depends', nodes=[
+                Xmlnode('field', attributes={'id': dep_field}, node_text=dep_val)
+            ]))
+
         system_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Config:etc/system_file.xsd"}, nodes=[
             Xmlnode('system', nodes=[
                 Xmlnode('section', attributes={'id': section.lower()}, nodes=[
                     Xmlnode('group', attributes={'id': group.lower()}, nodes=[
-                        Xmlnode('field', attributes={'id': field.lower(), 'type': type, 'translate': 'label', 'sortOrder': '10', 'showInDefault': '1', 'showInWebsite': '1', 'showInStore': '1'}, nodes=[
-                            Xmlnode('label', node_text=upperfirst(field)),
-                            Xmlnode('source_model', node_text=field_data['source_model']) if field_data['source_model'] else None
-                        ])
+                        Xmlnode('field', attributes={'id': field.lower(), 'type': type, 'translate': 'label', 'sortOrder': '10', 'showInDefault': '1', 'showInWebsite': '1', 'showInStore': '1'}, nodes=field_nodes)
                     ])
                 ])
             ])
@@ -83,20 +118,21 @@ class SystemSnippet(Snippet):
         ])
         self.add_xml('etc/acl.xml', acl_node)
 
-        # 3. Config XML (Defaults)
-        default_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Store:etc/config.xsd"}, nodes=[
-            Xmlnode('default', nodes=[
-                Xmlnode(section.lower(), nodes=[
-                    Xmlnode(group.lower(), nodes=[
-                        Xmlnode(field.lower(), node_text=default_value)
+        # 3. Config XML
+        if default_value:
+            default_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Store:etc/config.xsd"}, nodes=[
+                Xmlnode('default', nodes=[
+                    Xmlnode(section.lower(), nodes=[
+                        Xmlnode(group.lower(), nodes=[
+                            Xmlnode(field.lower(), node_text=default_value)
+                        ])
                     ])
                 ])
             ])
-        ])
-        self.add_xml('etc/config.xml', default_node)
+            self.add_xml('etc/config.xml', default_node)
 
-        # 4. Email Template Logic (Parity Restoration)
-        if field_type == 'email':
+        # 4. Email Template (Re-integration)
+        if original_type == 'email':
             template_id = f"{section.lower()}_{group.lower()}_{field.lower()}"
             template_file = f"{field.lower()}.html"
             config_path = f"{section.lower()}/{group.lower()}/{field.lower()}"
