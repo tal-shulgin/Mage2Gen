@@ -21,7 +21,7 @@ setup(
         'mage2gen.features'
     ],
     package_data={'mage2gen': ['templates/**/*.j2', 'templates/**/*.tmpl', 'licenses/*.txt']},
-    version = '3.1.0',
+    version = '3.2.0',
     description = 'Magento 2 module generator (V3)',
     long_description=readme(),
     long_description_content_type='text/markdown',
