@@ -36,6 +36,11 @@ class SystemSnippet(Snippet):
         scope="default,website,store",
         validate=None,
         comment=None,
+        tooltip=None,
+        can_restore=False,
+        frontend_class=None,
+        config_path=None,
+        if_module_enabled=None,
         encrypt=False,
         default_value="", 
         create_tab=False,
@@ -74,12 +79,10 @@ class SystemSnippet(Snippet):
                 source_model = 'Magento\\Config\\Model\\Config\\Source\\Yesno'
                 
         elif type == 'email':
-            # Maps 'email' type to a selector for Email Templates
             source_model = 'Magento\\Config\\Model\\Config\\Source\\Email\\Template'
             type = 'select'
 
         elif type == 'image':
-            # Generates a custom Backend Model to handle image upload saving
             backend_class_name = f"{camel_case(field)}Image"
             ns_backend = f"{self._module.package}\\{self._module.name}\\Model\\Config\\Backend"
             backend_model = f"{ns_backend}\\{backend_class_name}"
@@ -90,12 +93,10 @@ class SystemSnippet(Snippet):
                 'upload_dir': f"{section}/{group}"
             })
 
-            # FIX: Path must be directory only
             self.add_static_file("Model/Config/Backend", StaticFile(f"{backend_class_name}.php", body=content))
             upload_dir_node = Xmlnode('upload_dir', attributes={'config': 'system/filesystem/media', 'scope_info': '1'}, node_text=f"{section}/{group}")
             
         elif type == 'color':
-            # Generates a Frontend Block to render the color picker JS
             type = 'text'
             frontend_class_name = f"{camel_case(field)}Color"
             ns_frontend = f"{self._module.package}\\{self._module.name}\\Block\\Adminhtml\\System\\Config\\Field"
@@ -106,12 +107,9 @@ class SystemSnippet(Snippet):
                 'class_name': frontend_class_name
             })
 
-            # FIX: Path must be directory only
             self.add_static_file("Block/Adminhtml/System/Config/Field", StaticFile(f"{frontend_class_name}.php", body=content))
 
         # 5. Encryption/Security Logic
-        # Note: If type was 'image' or 'color', encryption usually doesn't apply, so we prioritize those.
-        # But if type is basic text/obscure, we apply encryption.
         if encrypt or type == 'password':
             type = 'obscure'
             if not backend_model:
@@ -127,11 +125,15 @@ class SystemSnippet(Snippet):
         ]
         
         if comment: field_nodes.append(Xmlnode('comment', node_text=comment))
+        if tooltip: field_nodes.append(Xmlnode('tooltip', node_text=tooltip))
         if validation_classes: field_nodes.append(Xmlnode('validate', node_text=validation_classes))
         if source_model: field_nodes.append(Xmlnode('source_model', node_text=source_model))
         if backend_model: field_nodes.append(Xmlnode('backend_model', node_text=backend_model))
         if frontend_model: field_nodes.append(Xmlnode('frontend_model', node_text=frontend_model))
         if upload_dir_node: field_nodes.append(upload_dir_node)
+        
+        if if_module_enabled: 
+             field_nodes.append(Xmlnode('if_module_enabled', node_text=if_module_enabled))
         
         # Dependency Logic
         if depends:
@@ -142,20 +144,30 @@ class SystemSnippet(Snippet):
                 Xmlnode('field', attributes={'id': dep_field}, node_text=dep_val)
             ]))
 
+        # Field Attributes
+        field_attrs = {
+            'id': field.lower(), 
+            'type': type, 
+            'translate': 'label', 
+            'sortOrder': '10', 
+            'showInDefault': show_default, 
+            'showInWebsite': show_website, 
+            'showInStore': show_store
+        }
+        
+        if can_restore:
+            field_attrs['canRestore'] = '1'
+        if frontend_class:
+            field_attrs['frontend_class'] = frontend_class
+        if config_path:
+            field_attrs['config_path'] = config_path
+
         # 1. System XML
         system_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Config:etc/system_file.xsd"}, nodes=[
             Xmlnode('system', nodes=[
                 Xmlnode('section', attributes={'id': section.lower()}, nodes=[
                     Xmlnode('group', attributes={'id': group.lower()}, nodes=[
-                        Xmlnode('field', attributes={
-                            'id': field.lower(), 
-                            'type': type, 
-                            'translate': 'label', 
-                            'sortOrder': '10', 
-                            'showInDefault': show_default, 
-                            'showInWebsite': show_website, 
-                            'showInStore': show_store
-                        }, nodes=field_nodes)
+                        Xmlnode('field', attributes=field_attrs, nodes=field_nodes)
                     ])
                 ])
             ])
@@ -200,13 +212,12 @@ class SystemSnippet(Snippet):
             ])
             self.add_xml('etc/config.xml', default_node)
 
-        # 4. Email Template Logic (Legacy support for 'email' type)
+        # 4. Email Template Logic
         if original_type == 'email':
             template_id = f"{section.lower()}_{group.lower()}_{field.lower()}"
             template_file = f"{field.lower()}.html"
             config_path = f"{section.lower()}/{group.lower()}/{field.lower()}"
             
-            # Generate email_templates.xml
             email_node = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation':"urn:magento:module:Magento_Email:etc/email_templates.xsd"}, nodes=[
                 Xmlnode('template', attributes={
                     'id': template_id,
@@ -219,12 +230,10 @@ class SystemSnippet(Snippet):
             ])
             self.add_xml('etc/email_templates.xml', email_node)
             
-            # Generate HTML Template
             html_content = TemplateEngine.render('snippets/system/email.html.j2', {
                 'label': upperfirst(field),
                 'field_id': field
             })
-            # FIX: Path must be directory only
             self.add_static_file("view/frontend/email", StaticFile(template_file, body=html_content))
 
             helper_name = f"{camel_case(field)}Mail"
@@ -237,7 +246,6 @@ class SystemSnippet(Snippet):
                 'method_name': camel_case(field),
                 'config_path': config_path
             })
-            # FIX: Path must be directory only
             self.add_static_file("Helper", StaticFile(f"{helper_name}.php", body=helper_content))
 
         specs = f" - Config: {section}/{group}/{field} [{type}]"

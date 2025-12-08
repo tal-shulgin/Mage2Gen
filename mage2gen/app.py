@@ -305,6 +305,12 @@ def system(
     create_tab: bool = typer.Option(False, help="Create Tab?"),
     source_model_options: str = typer.Option(None, help="Options"),
     depends: str = typer.Option(None, help="Depends on field (e.g. enable:1)"),
+    tooltip: str = typer.Option(None, help="Tooltip text"),
+    can_restore: bool = typer.Option(False, help="Add canRestore attribute"),
+    frontend_class: str = typer.Option(None, help="Frontend CSS class"),
+    config_path: str = typer.Option(None, help="Custom config path"),
+    if_module_enabled: str = typer.Option(None, help="Only show if module enabled"),
+    
     output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
 ):
     from mage2gen import Module
@@ -316,7 +322,12 @@ def system(
         default_value=default, 
         create_tab=create_tab, 
         source_model_options=source_model_options,
-        depends=depends
+        depends=depends,
+        tooltip=tooltip,
+        can_restore=can_restore,
+        frontend_class=frontend_class,
+        config_path=config_path,
+        if_module_enabled=if_module_enabled
     )
     mod.generate_module(output_dir)
 
