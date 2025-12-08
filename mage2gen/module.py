@@ -7,7 +7,8 @@ from collections import defaultdict, OrderedDict
 from xml.etree.ElementTree import Element, SubElement, tostring, ElementTree
 from xml.dom import minidom
 
-from .utils import upperfirst, merge_xml_files
+# Import the new prettify function
+from .utils import upperfirst, merge_xml_files, prettify_xml
 from .core.template import TemplateEngine
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
@@ -256,6 +257,9 @@ class Xmlnode:
         if self.node_text:
             el.text = self.node_text
 
+        # Attributes are set here. 
+        # Python dicts (3.7+) preserve insertion order, so if field_attrs defined 'id' first, it iterates first.
+        # ElementTree (3.8+) preserves this order when setting attributes.
         for key, value in self.attributes.items():
             el.set(str(key), str(value))
 
@@ -263,12 +267,8 @@ class Xmlnode:
             node.generate(el)
 
         if element == None:
-            output = tostring(el, 'utf-8')
-            reparsed = minidom.parseString(output)
-            if self.xsd:
-                return reparsed.toprettyxml(indent="\t").split('\n', 1)[-1]
-            else:
-                return reparsed.toprettyxml(indent="\t")
+            # Use the new prettify_xml function which preserves attribute order
+            return prettify_xml(el)
 
     def save(self, xml_path):
         try:
@@ -278,7 +278,6 @@ class Xmlnode:
         
         new_content = self.generate()
         
-        # V3 FIX: Merge with existing file if present
         if os.path.exists(xml_path):
             final_content = merge_xml_files(xml_path, new_content)
         else:

@@ -63,10 +63,11 @@ def model(
     package: str = typer.Option(..., help="Package"),
     module: str = typer.Option(..., help="Module"),
     name: str = typer.Option(..., help="Model Name"),
-    fields: str = typer.Option("", help="Fields (name:type,name:type)"),
+    fields: str = typer.Option("", help="Fields (name:type)"),
     admin_grid: bool = typer.Option(False, help="Generate Admin Grid"),
-    admin_form: bool = typer.Option(False, help="Generate Admin Form"), # V3
+    admin_form: bool = typer.Option(False, help="Generate Admin Form"),
     api: bool = typer.Option(False, help="Generate Web API"),
+    menu_parent: str = typer.Option(None, help="Parent Menu ID (e.g. Magento_Backend::content)"),
     output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
 ):
     """
@@ -77,8 +78,14 @@ def model(
     
     mod = Module(package, module)
     snippet = ModelSnippet(mod)
-    # Pass all mapped args
-    snippet.add(name=name, fields=fields, admin_grid=admin_grid, admin_form=admin_form, api=api)
+    snippet.add(
+        name=name, 
+        fields=fields, 
+        admin_grid=admin_grid, 
+        admin_form=admin_form, 
+        api=api,
+        menu_parent=menu_parent
+    )
     
     mod.generate_module(output_dir)
 
@@ -357,17 +364,32 @@ def admin_crud(
     module: str = typer.Option(..., help="Module"),
     name: str = typer.Option(..., help="Entity Name"),
     fields: str = typer.Option("", help="Fields (name:type)"),
+    menu_parent: str = typer.Option(None, help="Parent Menu ID (e.g. Magento_Backend::content)"),
     output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
 ):
     """
-    [Feature] Generates a full Admin CRUD (Model + Grid + Controllers).
+    [Feature] Generates a full Admin CRUD (Grid + Form).
     """
     from mage2gen import Module
-    from mage2gen.features.admin_crud import AdminCrudFeature
+    from mage2gen.snippets.model import ModelSnippet
+    from mage2gen.snippets.controller import ControllerSnippet
+    from mage2gen.utils import upperfirst
     
     mod = Module(package, module)
-    feature = AdminCrudFeature(mod)
-    feature.add(name=name, fields=fields)
+    
+    # Reuse Model Snippet logic which now handles the full stack including menu
+    snippet = ModelSnippet(mod)
+    snippet.add(
+        name=name, 
+        fields=fields, 
+        admin_grid=True, 
+        admin_form=True,
+        menu_parent=menu_parent
+    )
+    
+    # We still need to manually add controllers via ModelSnippet internal logic 
+    # OR if using the Feature class, update that. 
+    # Since we moved most logic into ModelSnippet in Phase 2, we just use that here.
     
     mod.generate_module(output_dir)
 
@@ -510,6 +532,30 @@ def configuration_type(
     ConfigurationTypeSnippet(mod).add(config_name=config_name, node_name=node_name, field_name=field_name)
     mod.generate_module(output_dir)
 
+@app.command("view-model")
+def view_model(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    class_name: str = typer.Option(..., help="Class Name"),
+    method_name: str = typer.Option(..., help="Method Name"),
+    layout_handle: str = typer.Option(..., help="Layout Handle (e.g. catalog_product_view)"),
+    reference: str = typer.Option("content", help="Reference Block/Container"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    """
+    Create a View Model and inject it into Layout.
+    """
+    from mage2gen import Module
+    from mage2gen.snippets.viewmodel import ViewModelSnippet
+    mod = Module(package, module)
+    ViewModelSnippet(mod).add(
+        classname=class_name,
+        methodname=method_name,
+        layout_handle=layout_handle,
+        reference_name=reference
+    )
+    mod.generate_module(output_dir)
+
 @app.command()
 def language(
     package: str = typer.Option(..., help="Package"),
@@ -521,6 +567,32 @@ def language(
     from mage2gen.snippets.language import LanguageSnippet
     mod = Module(package, module)
     LanguageSnippet(mod).add(language)
+    mod.generate_module(output_dir)
+
+@app.command("extension-attribute")
+def extension_attribute(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    interface: str = typer.Option(..., help="Target Interface (e.g. Magento\\Sales\\Api\\Data\\OrderInterface)"),
+    code: str = typer.Option(..., help="Attribute Code (e.g. vip_points)"),
+    type: str = typer.Option("string", help="Attribute Type (string, int, bool)"),
+    repository: str = typer.Option(None, help="Repository Interface (for persistence)"),
+    table: str = typer.Option(None, help="Database Table (for persistence)"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    """
+    Add an Extension Attribute with optional persistence (DB+Plugin).
+    """
+    from mage2gen import Module
+    from mage2gen.snippets.extensionattribute import ExtensionAttributeSnippet
+    mod = Module(package, module)
+    ExtensionAttributeSnippet(mod).add(
+        interface=interface,
+        code=code,
+        type=type,
+        repository=repository,
+        table=table
+    )
     mod.generate_module(output_dir)
 
 if __name__ == "__main__":

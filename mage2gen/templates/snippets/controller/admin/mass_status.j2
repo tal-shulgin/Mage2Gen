@@ -1,0 +1,47 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Backend\App\Action;
+use Magento\Backend\App\Action\Context;
+use Magento\Ui\Component\MassAction\Filter;
+use {{ collection_class }};
+use {{ collection_class }}Factory;
+use {{ repository_interface }};
+
+class Mass{{ status_label }} extends Action
+{
+    const ADMIN_RESOURCE = '{{ resource_id }}';
+
+    protected $filter;
+    protected $collectionFactory;
+    protected $repository;
+
+    public function __construct(
+        Context $context,
+        Filter $filter,
+        CollectionFactory $collectionFactory,
+        {{ repository_interface|split('\\')|last }} $repository
+    ) {
+        $this->filter = $filter;
+        $this->collectionFactory = $collectionFactory;
+        $this->repository = $repository;
+        parent::__construct($context);
+    }
+
+    public function execute()
+    {
+        $collection = $this->filter->getCollection($this->collectionFactory->create());
+        $count = 0;
+
+        foreach ($collection as $item) {
+            $item->setIsActive({{ status_value }}); // Assuming is_active field
+            $this->repository->save($item);
+            $count++;
+        }
+
+        $this->messageManager->addSuccessMessage(__('A total of %1 record(s) have been updated.', $count));
+        return $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT)->setPath('*/*/index');
+    }
+}

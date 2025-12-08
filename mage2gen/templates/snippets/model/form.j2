@@ -39,22 +39,71 @@
         <settings>
             <label translate="true">General</label>
         </settings>
+        
+        <!-- Smart Field Generation -->
         {% for field in fields %}
-        <field name="{{ field.name }}" formElement="input">
+        {% if field.form_element == 'fileUploader' %}
+        <field name="{{ field.name }}">
             <argument name="data" xsi:type="array">
                 <item name="config" xsi:type="array">
-                    <item name="source" xsi:type="string">{{ model_name|lower }}</item>
+                    <item name="label" xsi:type="string" translate="true">{{ field.label }}</item>
+                    <item name="visible" xsi:type="boolean">true</item>
+                    <item name="formElement" xsi:type="string">fileUploader</item>
+                    <item name="uploaderConfig" xsi:type="array">
+                        <item name="url" xsi:type="url" path="{{ route_id }}/{{ model_lower }}/upload"/>
+                    </item>
                 </item>
             </argument>
             <settings>
                 <validation>
-                    <rule name="required-entry" xsi:type="boolean">false</rule>
+                    {% if field.required %}
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    {% endif %}
                 </validation>
-                <dataType>text</dataType>
-                <label translate="true">{{ field.name|capitalize }}</label>
+                <dataType>string</dataType>
+                <label translate="true">{{ field.label }}</label>
                 <dataScope>{{ field.name }}</dataScope>
             </settings>
         </field>
+        {% else %}
+        <field name="{{ field.name }}" formElement="{{ field.form_element }}">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="source" xsi:type="string">{{ model_name|lower }}</item>
+                    {% if field.form_element == 'checkbox' %}
+                    <item name="default" xsi:type="number">1</item>
+                    {% endif %}
+                </item>
+            </argument>
+            <settings>
+                <validation>
+                    {% if field.required %}
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    {% endif %}
+                </validation>
+                
+                <dataType>{{ field.data_type }}</dataType>
+                <label translate="true">{{ field.label }}</label>
+                <dataScope>{{ field.name }}</dataScope>
+
+                {% if field.form_element == 'checkbox' %}
+                <prefer>toggle</prefer>
+                <valueMap>
+                    <map name="false" xsi:type="number">0</map>
+                    <map name="true" xsi:type="number">1</map>
+                </valueMap>
+                {% endif %}
+
+                {% if field.form_element == 'select' and field.source_model %}
+                <options class="{{ field.source_model }}"/>
+                {% endif %}
+                
+                {% if field.form_element == 'wysiwyg' %}
+                <wysiwyg>true</wysiwyg>
+                {% endif %}
+            </settings>
+        </field>
+        {% endif %}
         {% endfor %}
     </fieldset>
 </form>

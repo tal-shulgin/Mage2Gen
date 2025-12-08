@@ -144,17 +144,28 @@ class SystemSnippet(Snippet):
                 Xmlnode('field', attributes={'id': dep_field}, node_text=dep_val)
             ]))
 
-        # Field Attributes
+        # Calculate Translate Attribute
+        # Should be "label,comment,tooltip" if they exist
+        translate_items = ['label']
+        if comment:
+            translate_items.append('comment')
+        if tooltip:
+            translate_items.append('tooltip')
+        translate_str = ','.join(translate_items)
+
+        # Field Attributes - Explicitly ordered for XML generation
+        # 'id' is first. 'translate', 'type', 'sortOrder', 'showIn...' follow.
         field_attrs = {
             'id': field.lower(), 
+            'translate': translate_str,
             'type': type, 
-            'translate': 'label', 
             'sortOrder': '10', 
             'showInDefault': show_default, 
             'showInWebsite': show_website, 
             'showInStore': show_store
         }
         
+        # Advanced optional attributes
         if can_restore:
             field_attrs['canRestore'] = '1'
         if frontend_class:

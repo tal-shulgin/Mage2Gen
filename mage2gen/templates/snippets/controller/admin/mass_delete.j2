@@ -1,0 +1,76 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Backend\App\Action;
+use Magento\Backend\App\Action\Context;
+use Magento\Ui\Component\MassAction\Filter;
+use {{ collection_class }};
+use {{ collection_class }}Factory;
+use {{ repository_interface }};
+
+class MassDelete extends Action
+{
+    /**
+     * Authorization level of a basic admin session
+     *
+     * @see _isAllowed()
+     */
+    const ADMIN_RESOURCE = '{{ resource_id }}';
+
+    /**
+     * @var Filter
+     */
+    protected $filter;
+
+    /**
+     * @var CollectionFactory
+     */
+    protected $collectionFactory;
+
+    /**
+     * @var {{ repository_interface|split('\\')|last }}
+     */
+    protected $repository;
+
+    /**
+     * @param Context $context
+     * @param Filter $filter
+     * @param CollectionFactory $collectionFactory
+     * @param {{ repository_interface|split('\\')|last }} $repository
+     */
+    public function __construct(
+        Context $context,
+        Filter $filter,
+        CollectionFactory $collectionFactory,
+        {{ repository_interface|split('\\')|last }} $repository
+    ) {
+        $this->filter = $filter;
+        $this->collectionFactory = $collectionFactory;
+        $this->repository = $repository;
+        parent::__construct($context);
+    }
+
+    /**
+     * Execute action
+     *
+     * @return \Magento\Backend\Model\View\Result\Redirect
+     * @throws \Magento\Framework\Exception\LocalizedException|\Exception
+     */
+    public function execute()
+    {
+        $collection = $this->filter->getCollection($this->collectionFactory->create());
+        $collectionSize = $collection->getSize();
+
+        foreach ($collection as $item) {
+            $this->repository->delete($item);
+        }
+
+        $this->messageManager->addSuccessMessage(__('A total of %1 record(s) have been deleted.', $collectionSize));
+
+        /** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
+        $resultRedirect = $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT);
+        return $resultRedirect->setPath('*/*/index');
+    }
+}

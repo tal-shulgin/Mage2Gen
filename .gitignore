@@ -9,3 +9,4 @@ dist/
 *.iml
 phpcs.phar
 generated/
+test_*/

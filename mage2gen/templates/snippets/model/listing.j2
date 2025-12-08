@@ -43,7 +43,49 @@
         <bookmark name="bookmarks"/>
         <columnsControls name="columns_controls"/>
         <filterSearch name="fulltext"/>
-        <filters name="listing_filters"/>
+        <filters name="listing_filters">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="templates" xsi:type="array">
+                        <item name="filters" xsi:type="array">
+                            <item name="select" xsi:type="array">
+                                <item name="component" xsi:type="string">Magento_Ui/js/form/element/ui-select</item>
+                                <item name="template" xsi:type="string">ui/grid/filters/elements/ui-select</item>
+                            </item>
+                        </item>
+                    </item>
+                </item>
+            </argument>
+        </filters>
+        <massaction name="listing_massaction">
+            <action name="delete">
+                <settings>
+                    <confirm>
+                        <message translate="true">Are you sure you want to delete selected items?</message>
+                        <title translate="true">Delete items</title>
+                    </confirm>
+                    <url path="{{ route_id }}/{{ model_lower }}/massDelete"/>
+                    <type>delete</type>
+                    <label translate="true">Delete</label>
+                </settings>
+            </action>
+            {% if has_is_active %}
+            <action name="enable">
+                <settings>
+                    <url path="{{ route_id }}/{{ model_lower }}/massEnable"/>
+                    <type>enable</type>
+                    <label translate="true">Enable</label>
+                </settings>
+            </action>
+            <action name="disable">
+                <settings>
+                    <url path="{{ route_id }}/{{ model_lower }}/massDisable"/>
+                    <type>disable</type>
+                    <label translate="true">Disable</label>
+                </settings>
+            </action>
+            {% endif %}
+        </massaction>
         <paging name="listing_paging"/>
     </listingToolbar>
     <columns name="{{ table_name }}_columns">
@@ -64,14 +106,44 @@
             </argument>
         </column>
         {% for field in fields %}
+        {% if field.ui_type == 'date' %}
+        <column name="{{ field.name }}" class="Magento\Ui\Component\Listing\Columns\Date" component="Magento_Ui/js/grid/columns/date">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="filter" xsi:type="string">dateRange</item>
+                    <item name="dataType" xsi:type="string">date</item>
+                    <item name="label" xsi:type="string" translate="true">{{ field.label }}</item>
+                </item>
+            </argument>
+        </column>
+        {% elif field.ui_type == 'boolean' %}
+        <column name="{{ field.name }}" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="Magento\Config\Model\Config\Source\Yesno"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">{{ field.label }}</label>
+            </settings>
+        </column>
+        {% elif field.ui_type == 'select' %}
+        <column name="{{ field.name }}" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="{{ field.source_model }}"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">{{ field.label }}</label>
+            </settings>
+        </column>
+        {% else %}
         <column name="{{ field.name }}">
             <argument name="data" xsi:type="array">
                 <item name="config" xsi:type="array">
                     <item name="filter" xsi:type="string">text</item>
-                    <item name="label" xsi:type="string" translate="true">{{ field.name|capitalize }}</item>
+                    <item name="label" xsi:type="string" translate="true">{{ field.label }}</item>
                 </item>
             </argument>
         </column>
+        {% endif %}
         {% endfor %}
         <actionsColumn name="actions" class="{{ package }}\{{ module }}\Ui\Component\Listing\Column\{{ model_name }}Actions">
             <argument name="data" xsi:type="array">
