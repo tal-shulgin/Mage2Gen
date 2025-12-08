@@ -91,3 +91,8 @@ def _merge_elements(base_elem, new_elem):
         else:
             # Append new child
             base_elem.append(new_child)
+
+def to_pascal_case(snake_str):
+    """Converts snake_case or sentence string to PascalCase."""
+    components = snake_str.replace(' ', '_').split('_')
+    return "".join(x.title() for x in components)

@@ -213,23 +213,24 @@ $CMD eav-entity \
     --output-dir "$TEST_OUTPUT"
 
 # 23. Generate Controller (Frontend)
+# FIX: Removed '--admin false'. Default is false, simply omitting it works.
 echo "🎮 [22/30] Generating Frontend Controller..."
 $CMD controller \
     --package Mage2Gen --module "$MODULE_NAME" \
     --frontname "test" \
     --section "index" \
     --action "index" \
-    --admin false \
     --output-dir "$TEST_OUTPUT"
 
 # 24. Generate Controller (Admin)
+# FIX: Changed '--admin true' to just '--admin' flag.
 echo "👔 [23/30] Generating Admin Controller..."
 $CMD controller \
     --package Mage2Gen --module "$MODULE_NAME" \
     --frontname "test" \
     --section "admin" \
     --action "index" \
-    --admin true \
+    --admin \
     --output-dir "$TEST_OUTPUT"
 
 # 25. Generate Block with Template
@@ -252,6 +253,7 @@ $CMD schemapatch \
 
 # 27. Generate Model (Separate from Admin CRUD)
 echo "🏗️ [26/30] Generating Standalone Model..."
+# FIX: Flags like --admin-grid are booleans, no need for values if we just want to enable them
 $CMD model \
     --package Mage2Gen --module "$MODULE_NAME" \
     --name Review \

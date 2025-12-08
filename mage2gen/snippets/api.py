@@ -39,7 +39,7 @@ class ApiSnippet(Snippet):
         model_content = TemplateEngine.render('snippets/api/model.j2', {
             'namespace': model_ns,
             'class_name': model_name,
-            'interface': f"\\{if_ns}\\{interface_name}",
+            'interface': f"{if_ns}\\{interface_name}", # Full Namespace
             'interface_name_short': interface_name,
             'method_name': method.lower() + name_clean
         })

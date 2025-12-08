@@ -25,9 +25,11 @@ class WidgetSnippet(Snippet):
 
         # 2. PHTML Template
         phtml_body = f"""<?php if($block->getData('{field.lower()}')): ?>
-    <h2 class='{field.lower()}'><?= $block->getData('{field.lower()}') ?></h2>
+    <h2 class='{field.lower()}'><?= $escaper->escapeHtml($block->getData('{field.lower()}')) ?></h2>
 <?php endif; ?>"""
-        self.add_static_file(f"view/frontend/templates/widget/{template_file}", StaticFile(template_file, body=phtml_body))
+        
+        # Explicit path handling
+        self.add_static_file(f"view/frontend/templates/widget", StaticFile(template_file, body=phtml_body))
 
         # 3. Widget XML
         parameter_attributes = {'name': field.lower(),'xsi:type': field_type,'visible': 'true','sort_order': str(sortorder)}

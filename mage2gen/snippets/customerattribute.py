@@ -1,6 +1,6 @@
 from .. import Snippet, StaticFile, Readme, Xmlnode
 from ..core.template import TemplateEngine
-from ..utils import upperfirst
+from ..utils import upperfirst, to_pascal_case
 from ..schema import Table, Column
 
 class CustomerAttributeSnippet(Snippet):
@@ -25,7 +25,7 @@ class CustomerAttributeSnippet(Snippet):
 
         package = self._module.package
         module = self._module.name
-        class_name = f"Add{upperfirst(code)}CustomerAttribute"
+        class_name = f"Add{to_pascal_case(code)}CustomerAttribute"
         namespace = f"{package}\\{module}\\Setup\\Patch\\Data"
 
         # Forms Logic
