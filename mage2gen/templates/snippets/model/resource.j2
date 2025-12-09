@@ -4,14 +4,91 @@ declare(strict_types=1);
 namespace {{ namespace }};
 
 use Magento\Framework\Model\ResourceModel\Db\AbstractDb;
+use Magento\Framework\Model\ResourceModel\Db\Context;
+use Magento\Framework\Serialize\Serializer\Json;
+use Magento\Framework\Model\AbstractModel;
 
 class {{ class_name }} extends AbstractDb
 {
+    /**
+     * @var Json
+     */
+    protected $json;
+
+    /**
+     * @param Context $context
+     * @param Json $json
+     * @param string|null $connectionName
+     */
+    public function __construct(
+        Context $context,
+        Json $json,
+        $connectionName = null
+    ) {
+        $this->json = $json;
+        parent::__construct($context, $connectionName);
+    }
+
     /**
      * @inheritDoc
      */
     protected function _construct()
     {
         $this->_init('{{ table_name }}', '{{ id_field }}');
+    }
+
+    /**
+     * Process complex data before saving
+     *
+     * @param AbstractModel $object
+     * @return $this
+     */
+    protected function _beforeSave(AbstractModel $object)
+    {
+        // Handle Image Uploads (UI sends array, DB wants string path)
+        {% for field in image_fields %}
+        $image = $object->getData('{{ field }}');
+        if (is_array($image)) {
+            if (isset($image[0]['name'])) {
+                $object->setData('{{ field }}', $image[0]['name']);
+            } else {
+                $object->setData('{{ field }}', null);
+            }
+        }
+        {% endfor %}
+
+        // Handle Arrays (Multiselect) -> JSON
+        {% for field in serializing_fields %}
+        $val = $object->getData('{{ field }}');
+        if (is_array($val)) {
+            $object->setData('{{ field }}', $this->json->serialize($val));
+        }
+        {% endfor %}
+
+        return parent::_beforeSave($object);
+    }
+
+    /**
+     * Process complex data after loading
+     *
+     * @param AbstractModel $object
+     * @return $this
+     */
+    protected function _afterLoad(AbstractModel $object)
+    {
+        // Handle JSON -> Arrays
+        {% for field in serializing_fields %}
+        $val = $object->getData('{{ field }}');
+        if (!empty($val) && is_string($val)) {
+            try {
+                $object->setData('{{ field }}', $this->json->unserialize($val));
+            } catch (\Exception $e) {
+                // Keep original value if not valid JSON
+                $object->setData('{{ field }}', []);
+            }
+        }
+        {% endfor %}
+
+        return parent::_afterLoad($object);
     }
 }

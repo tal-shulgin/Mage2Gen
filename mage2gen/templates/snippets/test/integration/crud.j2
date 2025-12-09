@@ -1,0 +1,74 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\TestFramework\Helper\Bootstrap;
+use PHPUnit\Framework\TestCase;
+use Magento\Framework\Api\SearchCriteriaBuilder;
+use Magento\Framework\Exception\NoSuchEntityException;
+use {{ repository_interface }};
+use {{ data_interface }};
+use {{ data_interface }}Factory;
+
+class {{ class_name }} extends TestCase
+{
+    /**
+     * @var {{ repository_short }}
+     */
+    private $repository;
+
+    /**
+     * @var {{ data_interface_short }}Factory
+     */
+    private $modelFactory;
+
+    /**
+     * @var SearchCriteriaBuilder
+     */
+    private $searchCriteriaBuilder;
+
+    protected function setUp(): void
+    {
+        $objectManager = Bootstrap::getObjectManager();
+        $this->repository = $objectManager->get({{ repository_short }}::class);
+        $this->modelFactory = $objectManager->get({{ data_interface_short }}Factory::class);
+        $this->searchCriteriaBuilder = $objectManager->get(SearchCriteriaBuilder::class);
+    }
+
+    public function testCrudOperations()
+    {
+        // 1. Create
+        /** @var {{ data_interface_short }} $model */
+        $model = $this->modelFactory->create();
+        {% if test_field_setter %}
+        $model->{{ test_field_setter }}('Integration Test Value');
+        {% endif %}
+        
+        $savedModel = $this->repository->save($model);
+        
+        $this->assertNotNull($savedModel->getId());
+        $id = $savedModel->getId();
+
+        // 2. Read
+        $loadedModel = $this->repository->get($id);
+        $this->assertEquals($savedModel->getId(), $loadedModel->getId());
+        {% if test_field_getter %}
+        $this->assertEquals('Integration Test Value', $loadedModel->{{ test_field_getter }}());
+        {% endif %}
+
+        // 3. Update
+        {% if test_field_setter %}
+        $loadedModel->{{ test_field_setter }}('Updated Value');
+        $updatedModel = $this->repository->save($loadedModel);
+        $this->assertEquals('Updated Value', $updatedModel->{{ test_field_getter }}());
+        {% endif %}
+
+        // 4. Delete
+        $this->repository->deleteById($id);
+
+        // 5. Verify Delete
+        $this->expectException(NoSuchEntityException::class);
+        $this->repository->get($id);
+    }
+}

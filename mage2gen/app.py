@@ -597,5 +597,58 @@ def extension_attribute(
     )
     mod.generate_module(output_dir)
 
+@app.command("message-queue")
+def message_queue(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    topic: str = typer.Option(..., help="Topic Name (e.g. vendor.module.event)"),
+    consumer: str = typer.Option(..., help="Consumer Class Name (e.g. SyncConsumer)"),
+    queue: str = typer.Option(..., help="Queue Name"),
+    exchange: str = typer.Option("magento", help="Exchange Name"),
+    schema_type: str = typer.Option("string", help="Data Interface or type"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    """
+    Create Async Message Queue topology (Topic, Exchange, Queue, Consumer).
+    """
+    from mage2gen import Module
+    from mage2gen.snippets.messagequeue import MessageQueueSnippet
+    
+    mod = Module(package, module)
+    MessageQueueSnippet(mod).add(
+        topic=topic,
+        consumer=consumer,
+        queue=queue,
+        exchange=exchange,
+        schema_type=schema_type,
+        generate_publisher=True
+    )
+    
+    mod.generate_module(output_dir)
+
+@app.command("integration-test")
+def integration_test(
+    package: str = typer.Option(..., help="Package"),
+    module: str = typer.Option(..., help="Module"),
+    repository: str = typer.Option(..., help="Repository Interface (e.g. Vendor\\Mod\\Api\\PostRepositoryInterface)"),
+    data_interface: str = typer.Option(..., help="Data Interface (e.g. Vendor\\Mod\\Api\\Data\\PostInterface)"),
+    test_field: str = typer.Option(None, help="Field to set/check in test (e.g. title)"),
+    output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
+):
+    """
+    Create a CRUD Integration Test.
+    """
+    from mage2gen import Module
+    from mage2gen.snippets.integrationtest import IntegrationTestSnippet
+    
+    mod = Module(package, module)
+    IntegrationTestSnippet(mod).add(
+        repository=repository,
+        data_interface=data_interface,
+        test_field=test_field
+    )
+    
+    mod.generate_module(output_dir)
+
 if __name__ == "__main__":
     app()

@@ -3,6 +3,7 @@ import os
 import random
 import string
 import shutil
+import tempfile # <--- Import this
 from glob import glob
 
 from subprocess import Popen, PIPE
@@ -24,14 +25,23 @@ class CodeSniffer:
 
     @staticmethod
     def cleanup():
-        for path in glob(os.path.join(BASE_PATH, 'tmp_*')):
-            shutil.rmtree(path)
+        # Clean up files in the system temp directory matching our pattern
+        # Note: This looks for tmp_* in the system temp folder now
+        temp_dir = tempfile.gettempdir()
+        for path in glob(os.path.join(temp_dir, 'tmp_*')):
+            try:
+                shutil.rmtree(path)
+            except OSError:
+                pass # Ignore permission errors during cleanup of old runs
 
     @staticmethod
     def generate_and_test(module, *args):
-        path = os.path.join(BASE_PATH, tmp_path())
+        # CHANGED: Use system temp directory instead of local folder
+        path = os.path.join(tempfile.gettempdir(), tmp_path())
 
-        os.mkdir(path)
+        if not os.path.exists(path):
+            os.mkdir(path)
+            
         module.generate_module(path)
 
         # We return True here to bypass style checks during heavy refactoring

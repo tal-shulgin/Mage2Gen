@@ -1,0 +1,55 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Psr\Log\LoggerInterface;
+use Magento\Framework\Serialize\Serializer\Json;
+
+class {{ class_name }}
+{
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
+     * @var Json
+     */
+    private $json;
+
+    /**
+     * @param LoggerInterface $logger
+     * @param Json $json
+     */
+    public function __construct(
+        LoggerInterface $logger,
+        Json $json
+    ) {
+        $this->logger = $logger;
+        $this->json = $json;
+    }
+
+    /**
+     * Process message
+     *
+     * @param {{ type_hint }} $message
+     * @return void
+     */
+    public function {{ method_name }}($message)
+    {
+        try {
+            {% if type_hint == 'string' %}
+            // Optional: Decode if JSON
+            // $data = $this->json->unserialize($message);
+            {% endif %}
+            
+            $this->logger->info('Processing message form queue', ['data' => $message]);
+            
+            // Your business logic here
+            
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+        }
+    }
+}

@@ -1,0 +1,40 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\Data\OptionSourceInterface;
+use Magento\Framework\App\ResourceConnection;
+
+class {{ class_name }} implements OptionSourceInterface
+{
+    /**
+     * @var ResourceConnection
+     */
+    private $resource;
+
+    /**
+     * @param ResourceConnection $resource
+     */
+    public function __construct(
+        ResourceConnection $resource
+    ) {
+        $this->resource = $resource;
+    }
+
+    /**
+     * Get options
+     *
+     * @return array
+     */
+    public function toOptionArray()
+    {
+        $connection = $this->resource->getConnection();
+        $tableName = $this->resource->getTableName('{{ table }}');
+        
+        $select = $connection->select()
+            ->from($tableName, ['value' => '{{ id_col }}', 'label' => '{{ label_col }}']);
+            
+        return $connection->fetchAll($select);
+    }
+}

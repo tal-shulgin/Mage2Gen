@@ -1,0 +1,55 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\MessageQueue\PublisherInterface;
+use Magento\Framework\Serialize\Serializer\Json;
+
+class {{ class_name }}
+{
+    const TOPIC_NAME = '{{ topic }}';
+
+    /**
+     * @var PublisherInterface
+     */
+    private $publisher;
+
+    /**
+     * @var Json
+     */
+    private $json;
+
+    /**
+     * @param PublisherInterface $publisher
+     * @param Json $json
+     */
+    public function __construct(
+        PublisherInterface $publisher,
+        Json $json
+    ) {
+        $this->publisher = $publisher;
+        $this->json = $json;
+    }
+
+    /**
+     * Publish message to queue
+     *
+     * @param mixed $data
+     * @return void
+     */
+    public function publish($data)
+    {
+        try {
+            // Auto-serialize arrays if the topic expects a string/json payload
+            if (is_array($data)) {
+                $data = $this->json->serialize($data);
+            }
+            
+            $this->publisher->publish(self::TOPIC_NAME, $data);
+        } catch (\Exception $e) {
+            // Handle or log publication error
+            throw $e;
+        }
+    }
+}

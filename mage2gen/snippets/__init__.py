@@ -39,3 +39,4 @@ from .logger import LoggerSnippet
 from .messagequeue import MessageQueueSnippet
 from .less import LessSnippet
 from .schemapatch import SchemaPatchSnippet
+from .integrationtest import IntegrationTestSnippet

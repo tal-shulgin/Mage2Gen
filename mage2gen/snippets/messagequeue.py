@@ -1,102 +1,57 @@
-# A Magento 2 module generator library
-# Copyright (C) 2025 Mage2Gen
 import os
-from .. import Module, Phpclass, Phpmethod, Xmlnode, StaticFile, Snippet, SnippetParam, Readme
+from .. import Snippet, StaticFile, Readme, Xmlnode
+from ..core.template import TemplateEngine
 from ..utils import upperfirst
 
 class MessageQueueSnippet(Snippet):
     snippet_label = 'Message Queue'
     description = """
-    Create a Message Queue configuration with a Topic, Exchange, Queue, and Consumer.
-    Optionally generates a Publisher class wrapper for easy message dispatching.
+    Create a Message Queue configuration (RabbitMQ/Mysql) with Topic, Exchange, Queue, Consumer, and Publisher.
     """
 
-    def add(self, topic, consumer, queue, exchange, handler_method='processMessage', schema_type='string', generate_publisher=False, extra_params=None):
+    def add(self, topic, consumer, queue, exchange, handler_method='processMessage', schema_type='string', generate_publisher=True, extra_params=None):
+        package = self._module.package
+        module = self._module.name
         
-        # 1. Create Consumer Class
-        consumer_class_name = 'Model\\Consumer\\{}'.format(upperfirst(consumer))
-        consumer_class = Phpclass(
-            consumer_class_name,
-            dependencies=['Psr\\Log\\LoggerInterface']
-        )
+        # 1. Consumer Class
+        consumer_class_name = upperfirst(consumer)
+        consumer_ns = f"{package}\\{module}\\Model\\Consumer"
         
-        consumer_class.add_method(Phpmethod(
-            '__construct',
-            params=['LoggerInterface $logger'],
-            body='$this->logger = $logger;',
-            docstring=['@param LoggerInterface $logger'],
-            access='public'
-        ))
-        
-        consumer_class.attributes = ['/** @var LoggerInterface */', 'private $logger;']
-
-        # Determine param type based on schema
-        param_type = 'string'
+        # Determine PHP type hint
+        type_hint = 'string'
         if schema_type != 'string':
-            # Assume it's a class interface if not string
-            param_type = '\\' + schema_type.lstrip('\\')
+            # FIX: Logic moved outside f-string to avoid SyntaxError
+            clean_schema = schema_type.lstrip('\\')
+            type_hint = f"\\{clean_schema}"
 
-        consumer_class.add_method(Phpmethod(
-            handler_method,
-            params=['{} $message'.format(param_type)],
-            return_type='void',
-            body="""$this->logger->info('Processing message', ['message' => $message]);
-// Add your message processing logic here""",
-            docstring=[
-                'Process message',
-                '',
-                '@param {} $message'.format(param_type),
-                '@return void'
-            ]
-        ))
-        
-        self.add_class(consumer_class)
+        consumer_content = TemplateEngine.render('snippets/messagequeue/consumer.j2', {
+            'namespace': consumer_ns,
+            'class_name': consumer_class_name,
+            'method_name': handler_method,
+            'type_hint': type_hint
+        })
+        self.add_static_file(f"Model/Consumer", StaticFile(f"{consumer_class_name}.php", body=consumer_content))
 
-        # --- NEW: Publisher Generation ---
+        # 2. Publisher Class (Optional)
         publisher_info = ""
         if generate_publisher:
             # Derive class name from topic: "my.topic.name" -> "MyTopicName"
             topic_parts = topic.split('.')
             topic_class_name = ''.join(part.capitalize() for part in topic_parts)
-            publisher_class_name = 'Model\\Publisher\\{}'.format(topic_class_name)
+            publisher_class_name = f"{topic_class_name}Publisher"
+            publisher_ns = f"{package}\\{module}\\Model\\Publisher"
 
-            publisher_class = Phpclass(
-                publisher_class_name,
-                dependencies=['Magento\\Framework\\MessageQueue\\PublisherInterface']
-            )
+            publisher_content = TemplateEngine.render('snippets/messagequeue/publisher.j2', {
+                'namespace': publisher_ns,
+                'class_name': publisher_class_name,
+                'topic': topic
+            })
+            self.add_static_file(f"Model/Publisher", StaticFile(f"{publisher_class_name}.php", body=publisher_content))
+            publisher_info = f"\n\t- Publisher: {publisher_class_name}"
 
-            publisher_class.attributes = [
-                "const TOPIC_NAME = '{}';".format(topic),
-                '/** @var PublisherInterface */',
-                'private $publisher;'
-            ]
-
-            publisher_class.add_method(Phpmethod(
-                '__construct',
-                params=['PublisherInterface $publisher'],
-                body='$this->publisher = $publisher;',
-                docstring=['@param PublisherInterface $publisher'],
-                access='public'
-            ))
-
-            publisher_class.add_method(Phpmethod(
-                'publish',
-                # Use the same type hint as the consumer for type safety
-                params=['{} $data'.format(param_type)], 
-                return_type='void',
-                body="$this->publisher->publish(self::TOPIC_NAME, $data);",
-                docstring=[
-                    'Publish message to topic',
-                    '',
-                    '@param {} $data'.format(param_type),
-                    '@return void'
-                ]
-            ))
-
-            self.add_class(publisher_class)
-            publisher_info = "\n\t- Publisher: {}".format(publisher_class_name)
-
-        # 2. communication.xml
+        # 3. XML Configuration
+        
+        # communication.xml
         comm_xml = Xmlnode('config', attributes={
             'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
             'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Communication/etc/communication.xsd"
@@ -108,22 +63,23 @@ class MessageQueueSnippet(Snippet):
         ])
         self.add_xml('etc/communication.xml', comm_xml)
 
-        # 3. queue_consumer.xml
+        # queue_consumer.xml
+        consumer_full_class = f"{consumer_ns}\\{consumer_class_name}"
         cons_xml = Xmlnode('config', attributes={
             'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
             'xsi:noNamespaceSchemaLocation': "urn:magento:framework-message-queue:etc/consumer.xsd"
         }, nodes=[
             Xmlnode('consumer', attributes={
-                'name': consumer,
+                'name': f"{package.lower()}.{module.lower()}.{consumer.lower()}",
                 'queue': queue,
-                'connection': 'amqp',
+                'connection': 'amqp', # Default to RabbitMQ
                 'consumerInstance': r'Magento\Framework\MessageQueue\Consumer',
-                'handler': '{}::{}'.format(consumer_class.class_namespace, handler_method)
+                'handler': f"{consumer_full_class}::{handler_method}"
             })
         ])
         self.add_xml('etc/queue_consumer.xml', cons_xml)
 
-        # 4. queue_topology.xml
+        # queue_topology.xml
         top_xml = Xmlnode('config', attributes={
             'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
             'xsi:noNamespaceSchemaLocation': "urn:magento:framework-message-queue:etc/topology.xsd"
@@ -134,7 +90,7 @@ class MessageQueueSnippet(Snippet):
                 'connection': 'amqp'
             }, nodes=[
                 Xmlnode('binding', attributes={
-                    'id': '{}_{}'.format(exchange, queue),
+                    'id': f"{exchange}_{queue}",
                     'topic': topic,
                     'destinationType': 'queue',
                     'destination': queue
@@ -146,18 +102,18 @@ class MessageQueueSnippet(Snippet):
         self.add_static_file(
             '.',
             Readme(
-                specifications=" - Message Queue\n\t- Topic: {}\n\t- Consumer: {}{}".format(topic, consumer, publisher_info),
+                specifications=f" - Message Queue\n\t- Topic: {topic}\n\t- Queue: {queue}{publisher_info}",
             )
         )
 
     @classmethod
     def params(cls):
         return [
-            SnippetParam('topic', required=True, description='e.g. my.module.topic'),
-            SnippetParam('consumer', required=True, description='Unique name for the consumer', regex_validator=r'^[a-zA-Z0-9_]+$'),
-            SnippetParam('queue', required=True, description='Queue name', regex_validator=r'^[a-zA-Z0-9_]+$'),
-            SnippetParam('exchange', required=True, description='Exchange name', regex_validator=r'^[a-zA-Z0-9_]+$'),
-            SnippetParam('handler_method', required=True, default='processMessage', description='Method name in consumer class'),
-            SnippetParam('schema_type', required=True, default='string', description='Data interface class or simple type (string, bool, etc)'),
-            SnippetParam('generate_publisher', required=False, default=False, yes_no=True, description='Generate a Publisher class wrapper?')
+            SnippetParam('topic', required=True, description='e.g. mage2gen.module.topic'),
+            SnippetParam('consumer', required=True, description='Consumer Class Name (e.g. ExportConsumer)', regex_validator=r'^[a-zA-Z0-9_]+$'),
+            SnippetParam('queue', required=True, description='Queue name (e.g. mage2gen_export)', regex_validator=r'^[a-zA-Z0-9_]+$'),
+            SnippetParam('exchange', required=True, description='Exchange name (e.g. magento)', regex_validator=r'^[a-zA-Z0-9_]+$'),
+            SnippetParam('handler_method', required=False, default='processMessage', description='Method name in consumer class'),
+            SnippetParam('schema_type', required=False, default='string', description='Data interface or simple type'),
+            SnippetParam('generate_publisher', required=False, default=True, yes_no=True, description='Generate a Publisher class wrapper?')
         ]
