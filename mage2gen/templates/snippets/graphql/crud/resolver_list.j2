@@ -1,0 +1,63 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\GraphQl\Config\Element\Field;
+use Magento\Framework\GraphQl\Query\ResolverInterface;
+use Magento\Framework\GraphQl\Schema\Type\ResolveInfo;
+use Magento\Framework\Api\SearchCriteriaBuilder;
+use Magento\Framework\GraphQl\Query\Resolver\Argument\SearchCriteria\Builder as SearchCriteriaArgumentBuilder;
+use {{ repository_interface }};
+
+class ListResolver implements ResolverInterface
+{
+    /**
+     * @var {{ repository_short }}
+     */
+    private $repository;
+
+    /**
+     * @var SearchCriteriaBuilder
+     */
+    private $searchCriteriaBuilder;
+    
+    /**
+     * @var SearchCriteriaArgumentBuilder
+     */
+    private $searchCriteriaArgumentBuilder;
+
+    public function __construct(
+        {{ repository_short }} $repository,
+        SearchCriteriaBuilder $searchCriteriaBuilder,
+        SearchCriteriaArgumentBuilder $searchCriteriaArgumentBuilder
+    ) {
+        $this->repository = $repository;
+        $this->searchCriteriaBuilder = $searchCriteriaBuilder;
+        $this->searchCriteriaArgumentBuilder = $searchCriteriaArgumentBuilder;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function resolve(
+        Field $field,
+        $context,
+        ResolveInfo $info,
+        array $value = null,
+        array $args = null
+    ) {
+        $searchCriteria = $this->searchCriteriaArgumentBuilder->build($field->getName(), $args);
+        $searchResult = $this->repository->getList($searchCriteria);
+
+        return [
+            'items' => $searchResult->getItems(),
+            'total_count' => $searchResult->getTotalCount(),
+            'page_info' => [
+                'page_size' => $searchCriteria->getPageSize(),
+                'current_page' => $searchCriteria->getCurrentPage(),
+                'total_pages' => $searchCriteria->getPageSize() ? ((int)ceil($searchResult->getTotalCount() / $searchCriteria->getPageSize())) : 0
+            ]
+        ];
+    }
+}

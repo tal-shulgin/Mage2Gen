@@ -1,0 +1,61 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Magento\Framework\GraphQl\Config\Element\Field;
+use Magento\Framework\GraphQl\Query\ResolverInterface;
+use Magento\Framework\GraphQl\Schema\Type\ResolveInfo;
+use Magento\Framework\GraphQl\Exception\GraphQlInputException;
+use {{ repository_interface }};
+use {{ model_factory }};
+
+class Save implements ResolverInterface
+{
+    /**
+     * @var {{ repository_short }}
+     */
+    private $repository;
+
+    /**
+     * @var {{ model_factory_short }}
+     */
+    private $modelFactory;
+
+    public function __construct(
+        {{ repository_short }} $repository,
+        {{ model_factory_short }} $modelFactory
+    ) {
+        $this->repository = $repository;
+        $this->modelFactory = $modelFactory;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function resolve(
+        Field $field,
+        $context,
+        ResolveInfo $info,
+        array $value = null,
+        array $args = null
+    ) {
+        if (empty($args['input'])) {
+            throw new GraphQlInputException(__('Input value must be specified'));
+        }
+
+        $data = $args['input'];
+        $id = $data['{{ id_field }}'] ?? null;
+
+        if ($id) {
+            $model = $this->repository->get($id);
+        } else {
+            $model = $this->modelFactory->create();
+        }
+
+        $model->setData($data);
+        $this->repository->save($model);
+
+        return $model->getData();
+    }
+}

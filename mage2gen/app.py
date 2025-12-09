@@ -67,6 +67,7 @@ def model(
     admin_grid: bool = typer.Option(False, help="Generate Admin Grid"),
     admin_form: bool = typer.Option(False, help="Generate Admin Form"),
     api: bool = typer.Option(False, help="Generate Web API"),
+    graphql: bool = typer.Option(False, help="Generate GraphQL CRUD"),
     menu_parent: str = typer.Option(None, help="Parent Menu ID (e.g. Magento_Backend::content)"),
     output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
 ):
@@ -84,6 +85,7 @@ def model(
         admin_grid=admin_grid, 
         admin_form=admin_form, 
         api=api,
+        graphql=graphql,
         menu_parent=menu_parent
     )
     

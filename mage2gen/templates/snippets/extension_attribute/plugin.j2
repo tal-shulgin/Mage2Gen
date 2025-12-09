@@ -1,0 +1,97 @@
+<?php
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use {{ interface }};
+use {{ interface }}Factory;
+use {{ repository }};
+use Magento\Framework\Api\SearchResultsInterface;
+
+class {{ class_name }}
+{
+    /**
+     * @var {{ interface|split('\\')|last }}Factory
+     */
+    protected $extensionFactory;
+
+    /**
+     * @param {{ interface|split('\\')|last }}Factory $extensionFactory
+     */
+    public function __construct(
+        {{ interface|split('\\')|last }}Factory $extensionFactory
+    ) {
+        $this->extensionFactory = $extensionFactory;
+    }
+
+    /**
+     * @param {{ repository|split('\\')|last }} $subject
+     * @param {{ entity_interface }} $entity
+     * @return {{ entity_interface }}
+     */
+    public function afterGet(
+        {{ repository|split('\\')|last }} $subject,
+        {{ entity_interface }} $entity
+    ) {
+        $this->loadExtensionAttribute($entity);
+        return $entity;
+    }
+
+    /**
+     * @param {{ repository|split('\\')|last }} $subject
+     * @param SearchResultsInterface $searchResult
+     * @return SearchResultsInterface
+     */
+    public function afterGetList(
+        {{ repository|split('\\')|last }} $subject,
+        SearchResultsInterface $searchResult
+    ) {
+        foreach ($searchResult->getItems() as $entity) {
+            $this->loadExtensionAttribute($entity);
+        }
+        return $searchResult;
+    }
+
+    /**
+     * @param {{ repository|split('\\')|last }} $subject
+     * @param {{ entity_interface }} $entity
+     * @return array
+     */
+    public function beforeSave(
+        {{ repository|split('\\')|last }} $subject,
+        {{ entity_interface }} $entity
+    ) {
+        $extensionAttributes = $entity->getExtensionAttributes();
+        if ($extensionAttributes && $extensionAttributes->get{{ code_camel }}() !== null) {
+            $entity->setData('{{ code }}', $extensionAttributes->get{{ code_camel }}());
+        }
+        return [$entity];
+    }
+
+    /**
+     * Load Extension Attribute from Data Model
+     *
+     * @param {{ entity_interface }} $entity
+     */
+    private function loadExtensionAttribute({{ entity_interface }} $entity)
+    {
+        $extensionAttributes = $entity->getExtensionAttributes();
+        if ($extensionAttributes === null) {
+            $extensionAttributes = $this->extensionFactory->create();
+        }
+
+        // Hydrate extension attribute from model data (database column)
+        $value = $entity->getData('{{ code }}');
+        
+        {% if type == 'int' or type == 'integer' %}
+        $value = (int) $value;
+        {% elif type == 'float' %}
+        $value = (float) $value;
+        {% elif type == 'bool' or type == 'boolean' %}
+        $value = (bool) $value;
+        {% endif %}
+
+        $extensionAttributes->set{{ code_camel }}($value);
+        $entity->setExtensionAttributes($extensionAttributes);
+    }
+}

@@ -9,7 +9,22 @@ class ModelSnippet(Snippet):
     snippet_label = 'Model (CRUD)'
     description = "Create a Model, Resource Model, Collection, Repository, Interfaces, and UI Components."
 
-    def add(self, name=None, table=None, fields="", admin_grid=False, api=False, menu_parent=None, **kwargs):
+    def _get_graphql_type(self, type_str):
+        mapping = {
+            'int': 'Int',
+            'integer': 'Int',
+            'smallint': 'Int',
+            'tinyint': 'Int',
+            'bigint': 'Int',
+            'boolean': 'Boolean',
+            'bool': 'Boolean',
+            'float': 'Float',
+            'decimal': 'Float',
+            'numeric': 'Float',
+        }
+        return mapping.get(type_str, 'String')
+
+    def add(self, name=None, table=None, fields="", admin_grid=False, api=False, graphql=False, menu_parent=None, **kwargs):
         if 'model_name' in kwargs and not name: name = kwargs['model_name']
         if 'web_api' in kwargs: api = kwargs['web_api']
         if 'adminhtml_grid' in kwargs: admin_grid = kwargs['adminhtml_grid']
@@ -66,6 +81,7 @@ class ModelSnippet(Snippet):
         
         for f in field_list:
             p_type = get_php_type(f['type'], f['required'])
+            graphql_type = self._get_graphql_type(f['type'])
             
             # --- Smart UI Mapping ---
             # Grid Column Type
@@ -102,6 +118,7 @@ class ModelSnippet(Snippet):
                 'method_name': "".join([x.capitalize() for x in f['name'].split('_')]),
                 'var_name': lowerfirst("".join([x.capitalize() for x in f['name'].split('_')])),
                 'php_type': p_type,
+                'graphql_type': graphql_type,
                 'doc_type': get_php_doc_type(f['type'], f['required']),
                 'cast_type': p_type.replace('?', ''),
                 'ui_type': ui_type,
@@ -343,3 +360,69 @@ class ModelSnippet(Snippet):
             self.add_static_file(f"view/adminhtml/layout", StaticFile(f"{route_id}_{model_lower}_new.xml", body=layout_new))
 
         self.add_static_file('.', Readme(specifications=f" - Admin Grid/Form: {model_name}"))
+
+        # --- GRAPHQL LOGIC ---
+        if graphql:
+            resolver_ns = f"{module_package}\\{module_name}\\Model\\Resolver\\{model_name}"
+            
+            # Common resolver context
+            res_context = {
+                'namespace': resolver_ns,
+                'repository_interface': f"{repo_ns}\\{repo_interface}",
+                'repository_short': repo_interface,
+                'id_field': id_field
+            }
+
+            # 1. Resolvers
+            # Get
+            content = TemplateEngine.render('snippets/graphql/crud/resolver_get.j2', res_context)
+            self.add_static_file(f"Model/Resolver/{model_name}", StaticFile("Get.php", body=content))
+            
+            # List
+            content = TemplateEngine.render('snippets/graphql/crud/resolver_list.j2', res_context)
+            self.add_static_file(f"Model/Resolver/{model_name}", StaticFile("ListResolver.php", body=content))
+            
+            # Save
+            content = TemplateEngine.render('snippets/graphql/crud/resolver_save.j2', {
+                **res_context, 
+                'model_factory': f"{interface_ns}\\{interface_name}Factory",
+                'model_factory_short': f"{interface_name}Factory"
+            })
+            self.add_static_file(f"Model/Resolver/{model_name}", StaticFile("Save.php", body=content))
+            
+            # Delete
+            content = TemplateEngine.render('snippets/graphql/crud/resolver_delete.j2', res_context)
+            self.add_static_file(f"Model/Resolver/{model_name}", StaticFile("Delete.php", body=content))
+
+            # 2. Schema
+            type_name = model_name
+            id_type = 'Int' # Default for auto-increment ID
+            
+            # Generate Schema
+            schema_content = TemplateEngine.render('snippets/graphql/crud/schema.j2', {
+                'query_name': lowerfirst(model_name),
+                'query_list_name': lowerfirst(model_name) + 'List',
+                'id_field': id_field,
+                'id_type': id_type,
+                'type_name': type_name,
+                'model_name': model_name,
+                'resolver_get': f"{resolver_ns}\\Get",
+                'resolver_list': f"{resolver_ns}\\ListResolver",
+                'resolver_save': f"{resolver_ns}\\Save",
+                'resolver_delete': f"{resolver_ns}\\Delete",
+                'fields': processed_fields
+            })
+            
+            self.add_static_file('etc', StaticFile('schema.graphqls', body=schema_content))
+            
+            # 3. Module Sequence
+            seq_config = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Module/etc/module.xsd"}, nodes=[
+                Xmlnode('module', attributes={'name': f"{module_package}_{module_name}"}, nodes=[
+                    Xmlnode('sequence', attributes={}, nodes=[
+                        Xmlnode('module', attributes={'name': 'Magento_GraphQl'})
+                    ])
+                ])
+            ])
+            self.add_xml('etc/module.xml', seq_config)
+            
+            self.add_static_file('.', Readme(specifications=f" - GraphQL CRUD: {model_name}"))

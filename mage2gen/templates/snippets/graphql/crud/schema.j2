@@ -1,0 +1,40 @@
+type Query {
+    {{ query_name }}({{ id_field }}: {{ id_type }}! @doc(description: "Identifier")): {{ type_name }} @resolver(class: "{{ resolver_get }}") @doc(description: "Get {{ model_name }} by ID")
+    {{ query_list_name }}(
+        filter: {{ type_name }}FilterInput @doc(description: "Identifies which {{ model_name }} objects to return."),
+        pageSize: Int = 20 @doc(description: "The number of items to return. The maximum value is 20."),
+        currentPage: Int = 1 @doc(description: "The current page.")
+    ): {{ type_name }}SearchResults @resolver(class: "{{ resolver_list }}") @doc(description: "Search {{ model_name }} list")
+}
+
+type Mutation {
+    create{{ model_name }}(input: {{ type_name }}Input!): {{ type_name }} @resolver(class: "{{ resolver_save }}") @doc(description: "Create or Update {{ model_name }}")
+    delete{{ model_name }}({{ id_field }}: {{ id_type }}!): Boolean @resolver(class: "{{ resolver_delete }}") @doc(description: "Delete {{ model_name }}")
+}
+
+type {{ type_name }} @doc(description: "{{ model_name }} data") {
+    {% for field in fields %}
+    {{ field.name }}: {{ field.graphql_type }} @doc(description: "{{ field.label }}")
+    {% endfor %}
+}
+
+input {{ type_name }}Input {
+    {% for field in fields %}
+    {% if field.name != id_field %}
+    {{ field.name }}: {{ field.graphql_type }}
+    {% endif %}
+    {% endfor %}
+    {{ id_field }}: {{ id_type }}
+}
+
+input {{ type_name }}FilterInput {
+    {% for field in fields %}
+    {{ field.name }}: FilterTypeInput
+    {% endfor %}
+}
+
+type {{ type_name }}SearchResults {
+    items: [{{ type_name }}]
+    total_count: Int
+    page_info: SearchResultPageInfo
+}
