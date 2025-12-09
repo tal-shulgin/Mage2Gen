@@ -10,3 +10,4 @@ dist/
 phpcs.phar
 generated/
 test_*/
+*.txt

@@ -9,9 +9,10 @@
     </argument>
     <settings>
         <buttons>
-            <button name="save" class="{{ package }}\{{ module }}\Block\Adminhtml\Post\Edit\SaveButton"/>
-            <button name="delete" class="{{ package }}\{{ module }}\Block\Adminhtml\Post\Edit\DeleteButton"/>
-            <button name="back" class="{{ package }}\{{ module }}\Block\Adminhtml\Post\Edit\BackButton"/>
+            <button name="save" class="{{ package }}\{{ module }}\Block\Adminhtml\{{ model_name }}\Edit\SaveButton"/>
+            <button name="save_and_continue" class="{{ package }}\{{ module }}\Block\Adminhtml\{{ model_name }}\Edit\SaveAndContinueButton"/>
+            <button name="delete" class="{{ package }}\{{ module }}\Block\Adminhtml\{{ model_name }}\Edit\DeleteButton"/>
+            <button name="back" class="{{ package }}\{{ module }}\Block\Adminhtml\{{ model_name }}\Edit\BackButton"/>
         </buttons>
         <namespace>{{ table_name }}_form</namespace>
         <dataScope>data</dataScope>

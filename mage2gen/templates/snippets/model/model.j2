@@ -5,7 +5,7 @@ namespace {{ namespace }};
 
 use Magento\Framework\Model\AbstractModel;
 use {{ interface_namespace }}\{{ interface_name }};
-use {{ resource_namespace }}\{{ resource_name }};
+use {{ resource_namespace }}\{{ resource_name }} as ResourceModel;
 
 class {{ class_name }} extends AbstractModel implements {{ interface_name }}
 {
@@ -19,7 +19,7 @@ class {{ class_name }} extends AbstractModel implements {{ interface_name }}
      */
     protected function _construct()
     {
-        $this->_init({{ resource_name }}::class);
+        $this->_init(ResourceModel::class);
     }
 
 {% for field in fields %}

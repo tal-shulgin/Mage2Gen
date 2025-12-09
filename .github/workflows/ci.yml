@@ -1,0 +1,32 @@
+name: Mage2Gen CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install typer jinja2
+    - name: Run Unit Tests
+      run: |
+        python -m unittest discover -s tests -v
+    - name: Run Integration Checks
+      run: |
+        # Convert shell verification scripts to something runnable here
+        # For now, ensure basic module generation works
+        python -m mage2gen.app module --package Vendor --name Module --output-dir ./out
+        test -f ./out/Vendor/Module/registration.php
+        test -f ./out/Vendor/Module/etc/module.xml
+        test -f ./out/Vendor/Module/composer.json

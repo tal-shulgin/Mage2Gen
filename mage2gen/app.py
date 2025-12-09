@@ -15,6 +15,11 @@ def get_default_output_dir():
     """
     return os.environ.get("MAGE2GEN_OUTPUT", ".")
 
+def validate_name(value: str):
+    if not value or not value.strip():
+        raise typer.BadParameter("Name cannot be empty")
+    return value.strip()
+
 @app.command()
 def hello(name: str):
     """
@@ -24,8 +29,8 @@ def hello(name: str):
 
 @app.command()
 def module(
-    package: str = typer.Option(..., prompt="Package Name", help="Vendor/Package name"),
-    name: str = typer.Option(..., prompt="Module Name", help="Module Name"),
+    package: str = typer.Option(..., prompt="Package Name", help="Vendor/Package name", callback=validate_name),
+    name: str = typer.Option(..., prompt="Module Name", help="Module Name", callback=validate_name),
     description: str = typer.Option("", help="Module Description"),
     output_dir: str = typer.Option(default_factory=get_default_output_dir, help="Output directory")
 ):
@@ -388,10 +393,6 @@ def admin_crud(
         admin_form=True,
         menu_parent=menu_parent
     )
-    
-    # We still need to manually add controllers via ModelSnippet internal logic 
-    # OR if using the Feature class, update that. 
-    # Since we moved most logic into ModelSnippet in Phase 2, we just use that here.
     
     mod.generate_module(output_dir)
 

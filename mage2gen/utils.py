@@ -15,9 +15,13 @@ class DefaultFormatter(string.Formatter):
             return self.default
 
 def upperfirst(word):
+    if not word:
+        return ''
     return word[0].upper() + word[1:]
 
 def lowerfirst(word):
+    if not word:
+        return ''
     return word[0].lower() + word[1:]
 
 def prettify_xml(elem):

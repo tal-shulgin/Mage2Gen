@@ -6,18 +6,37 @@ namespace {{ namespace }};
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
 use Magento\Ui\Component\MassAction\Filter;
-use {{ collection_class }};
 use {{ collection_class }}Factory;
 use {{ repository_interface }};
 
 class Mass{{ status_label }} extends Action
 {
+    /**
+     * Authorization level of a basic admin session
+     */
     const ADMIN_RESOURCE = '{{ resource_id }}';
 
+    /**
+     * @var Filter
+     */
     protected $filter;
+
+    /**
+     * @var CollectionFactory
+     */
     protected $collectionFactory;
+
+    /**
+     * @var {{ repository_interface|split('\\')|last }}
+     */
     protected $repository;
 
+    /**
+     * @param Context $context
+     * @param Filter $filter
+     * @param CollectionFactory $collectionFactory
+     * @param {{ repository_interface|split('\\')|last }} $repository
+     */
     public function __construct(
         Context $context,
         Filter $filter,
@@ -30,18 +49,26 @@ class Mass{{ status_label }} extends Action
         parent::__construct($context);
     }
 
+    /**
+     * Execute action
+     *
+     * @return \Magento\Framework\Controller\Result\Redirect
+     */
     public function execute()
     {
         $collection = $this->filter->getCollection($this->collectionFactory->create());
-        $count = 0;
+        $collectionSize = $collection->getSize();
 
-        foreach ($collection as $item) {
-            $item->setIsActive({{ status_value }}); // Assuming is_active field
-            $this->repository->save($item);
-            $count++;
-        }
+        // Optimization: Use collection mass update
+        // Note: This triggers a save on the collection which iterates items, 
+        // but avoids loading full models via repository if not needed.
+        $collection->setDataToAll('is_active', {{ status_value }});
+        $collection->save();
 
-        $this->messageManager->addSuccessMessage(__('A total of %1 record(s) have been updated.', $count));
-        return $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT)->setPath('*/*/index');
+        $this->messageManager->addSuccessMessage(__('A total of %1 record(s) have been updated.', $collectionSize));
+
+        /** @var \Magento\Backend\Model\View\Result\Redirect $resultRedirect */
+        $resultRedirect = $this->resultFactory->create(\Magento\Framework\Controller\ResultFactory::TYPE_REDIRECT);
+        return $resultRedirect->setPath('*/*/index');
     }
 }

@@ -5,7 +5,7 @@ namespace {{ namespace }};
 
 use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
 use {{ model_namespace }}\{{ model_name }};
-use {{ resource_namespace }}\{{ resource_name }};
+use {{ resource_namespace }}\{{ resource_name }} as ResourceModel;
 
 class {{ class_name }} extends AbstractCollection
 {
@@ -21,7 +21,7 @@ class {{ class_name }} extends AbstractCollection
     {
         $this->_init(
             {{ model_name }}::class,
-            {{ resource_name }}::class
+            ResourceModel::class
         );
     }
 }
