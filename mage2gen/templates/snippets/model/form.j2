@@ -86,23 +86,41 @@
                 <dataType>{{ field.data_type }}</dataType>
                 <label translate="true">{{ field.label }}</label>
                 <dataScope>{{ field.name }}</dataScope>
-
-                {% if field.form_element == 'checkbox' %}
-                <prefer>toggle</prefer>
-                <valueMap>
-                    <map name="false" xsi:type="number">0</map>
-                    <map name="true" xsi:type="number">1</map>
-                </valueMap>
-                {% endif %}
-
-                {% if field.form_element == 'select' and field.source_model %}
-                <options class="{{ field.source_model }}"/>
-                {% endif %}
-                
-                {% if field.form_element == 'wysiwyg' %}
-                <wysiwyg>true</wysiwyg>
-                {% endif %}
             </settings>
+
+            {% if field.form_element == 'checkbox' %}
+            <formElements>
+                <checkbox>
+                    <settings>
+                        <prefer>toggle</prefer>
+                        <valueMap>
+                            <map name="false" xsi:type="number">0</map>
+                            <map name="true" xsi:type="number">1</map>
+                        </valueMap>
+                    </settings>
+                </checkbox>
+            </formElements>
+            {% endif %}
+
+            {% if field.form_element == 'select' and field.source_model %}
+            <formElements>
+                <select>
+                    <settings>
+                        <options class="{{ field.source_model }}"/>
+                    </settings>
+                </select>
+            </formElements>
+            {% endif %}
+            
+            {% if field.form_element == 'wysiwyg' %}
+            <formElements>
+                <wysiwyg>
+                    <settings>
+                        <wysiwyg>true</wysiwyg>
+                    </settings>
+                </wysiwyg>
+            </formElements>
+            {% endif %}
         </field>
         {% endif %}
         {% endfor %}

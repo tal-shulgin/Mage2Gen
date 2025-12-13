@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace {{ namespace }};
 
+{% if use_extension_attributes %}
 use Magento\Framework\Api\ExtensibleDataInterface;
+{% endif %}
 
-interface {{ class_name }} extends ExtensibleDataInterface
+interface {{ class_name }} {% if use_extension_attributes %} extends ExtensibleDataInterface {% endif %}
 {
 {% for field in fields %}
     const {{ field.const }} = '{{ field.name }}';
@@ -28,6 +30,7 @@ interface {{ class_name }} extends ExtensibleDataInterface
     public function set{{ field.method_name }}({{ field.php_type }} ${{ field.var_name }}): {{ class_name }};
 {% endfor %}
 
+{% if use_extension_attributes %}
     /**
      * Retrieve existing extension attributes object or create a new one.
      *
@@ -42,4 +45,5 @@ interface {{ class_name }} extends ExtensibleDataInterface
      * @return $this
      */
     public function setExtensionAttributes(\{{ extension_interface }} $extensionAttributes);
+{% endif %}
 }

@@ -320,9 +320,10 @@ class StaticFile:
 # Readme
 ###############################################################################
 class Readme:
-    def __init__(self, file_name='README.md', body=None, template_file='readme.tmpl', context_data=None, configuration=None, specifications=None, attributes=None):
+    # [FIX] Use .j2 extension
+    def __init__(self, file_name='README.md', body=None, template_file='readme.j2', context_data=None, configuration=None, specifications=None, attributes=None):
         self.file_name = file_name
-        self.template_file = os.path.join(TEMPLATE_DIR, template_file)
+        self.template_file = template_file # Relative path for TemplateEngine
         self._context_data = context_data if context_data else {}
         self._context_data['body'] = [body] if body else []
         self._context_data['configuration'] = [configuration] if configuration else []
@@ -353,9 +354,8 @@ class Readme:
         return self._context_data
 
     def generate(self):
-        with open(self.template_file, 'rb') as tmpl:
-            template = tmpl.read().decode('utf-8')
-        return template.format(**self.context_data())
+        # [FIX] Use TemplateEngine instead of file open
+        return TemplateEngine.render(self.template_file, self.context_data())
 
     def save(self, file_path):
         try:

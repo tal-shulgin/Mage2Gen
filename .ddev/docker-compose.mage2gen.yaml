@@ -1,0 +1,20 @@
+services:
+  mage2gen:
+    # Use the image we built (or push to DockerHub later)
+    image: mage2gen:latest
+    container_name: ddev-${DDEV_SITENAME}-mage2gen
+    restart: "no"
+    # Overwrite the default entrypoint to run the daemon
+    entrypoint: ["python3", "-m", "mage2gen.daemon"]
+    environment:
+      - MAGE2GEN_OUTPUT=/var/www/html/app/code
+      - MAGE2GEN_WATCH_DIR=/var/www/html
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Mount the project root so we can see m2g.yaml
+      - ../:/var/www/html
+    # Critical: Run as the DDEV user to avoid file permission issues
+    user: "${DDEV_UID}:${DDEV_GID}"
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: ${DDEV_APPROOT}

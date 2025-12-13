@@ -29,21 +29,27 @@ def prettify_xml(elem):
     Return a pretty-printed XML string for the Element.
     Preserves attribute order by using ElementTree indent (Py3.9+) or fallback.
     """
+    xml_str = ""
     try:
         # Python 3.9+ supports indentation natively in ElementTree
         if hasattr(ET, 'indent'):
             ET.indent(elem, space="    ")
-            return ET.tostring(elem, encoding='utf-8').decode('utf-8')
+            xml_str = ET.tostring(elem, encoding='utf-8').decode('utf-8')
         else:
-            # Fallback for older python (e.g. 3.7/3.8)
-            # We use a manual indentation logic on the tree to avoid minidom sorting
+            # Fallback for older python
             _indent(elem)
-            return ET.tostring(elem, encoding='utf-8').decode('utf-8')
+            xml_str = ET.tostring(elem, encoding='utf-8').decode('utf-8')
     except Exception:
-        # Ultimate fallback if something fails
+        # Ultimate fallback
         rough_string = ET.tostring(elem, 'utf-8')
         reparsed = minidom.parseString(rough_string)
-        return reparsed.toprettyxml(indent="    ")
+        xml_str = reparsed.toprettyxml(indent="    ")
+
+    # [FIX] Ensure XML Declaration is present
+    if not xml_str.strip().startswith('<?xml'):
+        return '<?xml version="1.0"?>\n' + xml_str
+    
+    return xml_str
 
 def _indent(elem, level=0):
     """Manual indentation for ElementTree."""
@@ -67,22 +73,14 @@ def merge_xml_files(existing_path, new_xml_string):
     Returns the merged XML string.
     """
     try:
-        # DO NOT register global namespace; let parser handle attributes as-is
-        
-        # Parse existing file
         tree = ET.parse(existing_path)
         root = tree.getroot()
-        
-        # Parse new content
         new_root = ET.fromstring(new_xml_string)
         
         if root.tag != new_root.tag:
             return new_xml_string
 
-        # Merge new_root children into root
         _merge_elements(root, new_root)
-        
-        # Use our new prettify function instead of minidom
         return prettify_xml(root)
         
     except Exception as e:
@@ -92,7 +90,6 @@ def merge_xml_files(existing_path, new_xml_string):
 def _get_element_id(elem):
     """Identify elements by specific attributes for merging."""
     target_attrs = ['id', 'name', 'frontName', 'url', 'class', 'instance', 'for']
-    
     tag = elem.tag
     if '}' in tag:
         tag = tag.split('}', 1)[1]

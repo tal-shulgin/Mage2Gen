@@ -1,212 +1,153 @@
-# Mage2Gen 3.2 🚀
+# Mage2Gen DX (v6.0) 🚀
 
-Mage2Gen is a command-line tool for generating Magento 2 modules, creating a standardized boilerplate for Models, Controllers, Blocks, and more.
+**The Intelligent Magento 2 Module Generator.**
 
-**Version 3.2** introduces Advanced System Configuration (Dynamic Rows, Image Uploads) and a **Dockerized/DDEV** workflow for zero-configuration usage across multiple projects.
+Mage2Gen is a developer tool that scaffolds Magento 2 modules, models, plugins, and configuration files. 
 
-## Prerequisites
+**v6.0 "DX Edition"** introduces a persistent Daemon architecture, allowing for:
+*   **Instant Generation:** <50ms response time (no Docker cold starts).
+*   **Configuration as Code:** Define modules in `m2g.yaml` and commit them to Git.
+*   **Hot Reload:** Code is regenerated instantly when you save your YAML file.
 
-*   **Docker**
-*   **DDEV** (Global configuration)
+---
 
-## Installation (Setup Guide)
+## ⚡ Quick Start: DDEV Integration
 
-This setup allows you to run `ddev m2g` in **any** Magento project folder on your machine without installing Python locally.
+The recommended way to use Mage2Gen is as a "sidecar" service in your existing DDEV project.
 
-### 1. Build the Docker Image
-Run this command from the root of this repository:
+### 1. Install the Service
+Download the compose configuration into your project's `.ddev` folder:
 
 ```bash
-docker build -t mage2gen:latest .
+# Run this inside your Magento project root
+curl -o .ddev/docker-compose.mage2gen.yaml https://raw.githubusercontent.com/mage2gen/mage2gen/v6.0/.ddev/docker-compose.mage2gen.yaml
 ```
 
-### 2. Install the Global Command
-Create the global DDEV command file at `~/.ddev/commands/host/m2g`.
-
-**Linux/macOS:**
+### 2. Start DDEV
 ```bash
-# Create directory if it doesn't exist
-mkdir -p ~/.ddev/commands/host
+ddev restart
+```
+The Mage2Gen daemon will start silently in the background, mounting your project root.
 
-# Create the command file (Copy/Paste this block)
-cat << 'EOF' > ~/.ddev/commands/host/m2g
-#!/bin/bash
+### 3. Generate Code
+Create a file named `m2g.yaml` in your project root. Paste the following:
 
-## Description: Global Mage2Gen Generator
-## Usage: m2g [model|module|etc] [flags]
-## Example: ddev m2g module --package Vendor --name Shop
-
-# 1. Configuration
-IMAGE_NAME="mage2gen:latest"
-
-# 2. Validation
-# Check if image exists
-if [[ "$(docker images -q $IMAGE_NAME 2> /dev/null)" == "" ]]; then
-  echo "❌ Error: Docker image '$IMAGE_NAME' not found."
-  echo "Please build it in your source folder: docker build -t mage2gen:latest ."
-  exit 1
-fi
-
-# 3. Determine Output Directory
-# We attempt to find app/code relative to where you are standing
-TARGET_DIR="${PWD}"
-
-# Heuristic: If we are in project root, map to app/code
-if [ -d "${PWD}/app/code" ]; then
-    TARGET_DIR="${PWD}/app/code"
-elif [[ "${PWD}" == *"/app/code"* ]]; then
-    # We are already inside or below app/code, map current dir
-    TARGET_DIR="${PWD}"
-else
-    # Fallback: create 'generated' folder in current dir to be safe
-    mkdir -p generated
-    TARGET_DIR="${PWD}/generated"
-fi
-
-# 4. Run Container
-# --rm: Delete container after running
-# -v: Map host User/Group ID so files are owned by you (not root)
-# -v: Map the Target Directory to /output
-# -e: Tell Mage2Gen to write to /output
-docker run --rm \
-    -u "$(id -u):$(id -g)" \
-    -v "$TARGET_DIR":/output \
-    -e MAGE2GEN_OUTPUT=/output \
-    $IMAGE_NAME "$@"
-
-# 5. Feedback
-echo "✅ Code generated in: $TARGET_DIR"
-
-EOF
-
-# Make it executable
-chmod +x ~/.ddev/commands/host/m2g
+```yaml
+version: 1.0
+modules:
+  MyVendor_Blog:
+    description: "My Blog Module"
+    components:
+      - type: model
+        name: Post
+        fields:
+          - name: title
+            type: text
+            required: true
+          - name: is_active
+            type: boolean
+        admin_grid: true
+        admin_form: true
 ```
 
-### 3. Install Test Suite Command (Optional)
-To run unit tests for Mage2Gen itself:
+**Save the file.** 
+Check `app/code/MyVendor/Blog`. The code is already there.
+
+---
+
+## 📖 Configuration Reference (`m2g.yaml`)
+
+Mage2Gen watches `m2g.yaml` for changes. You can define multiple modules and components.
+
+### Supported Components
+
+| Component | YAML Type | Description |
+| :--- | :--- | :--- |
+| **Model** | `model` | CRUD Model, Resource, Collection, Repository, API |
+| **Controller** | `controller` | Frontend or Adminhtml Controller & Route |
+| **Block** | `block` | Block class + PHTML + Layout XML |
+| **Observer** | `observer` | Event Observer |
+| **Plugin** | `plugin` | Interceptor (Before/After/Around) |
+| **System Config** | `system` | `system.xml` fields (Text, Select, Image, etc.) |
+| **Cron** | `cron` | Cron job definition |
+| **Console** | `console` | CLI Command |
+| **API** | `api` | Custom REST API Endpoint |
+| **GraphQL** | `graphql` | Custom GraphQL Query/Mutation |
+
+### Full Example
+See [m2g_reference.yaml](m2g_reference.yaml) for a complete "Kitchen Sink" example containing every supported option.
+
+---
+
+## 🛠️ Manual Usage (Docker)
+
+If you aren't using DDEV, you can run the daemon manually using Docker.
 
 ```bash
-cat << 'EOF' > ~/.ddev/commands/host/m2g-test-suite
-#!/bin/bash
-
-## Description: Run Mage2Gen Unit Tests
-## Usage: m2g-test-suite
-
-# Configuration
-IMAGE_NAME="mage2gen:latest"
-
-# Check if image exists
-if [[ "$(docker images -q $IMAGE_NAME 2> /dev/null)" == "" ]]; then
-    echo "❌ Error: Docker image '$IMAGE_NAME' not found."
-    echo "Please build it in your source folder: docker build -t mage2gen:latest ."
-    exit 1
-fi
-
-# Create a temporary directory on the host for test artifacts
-TEMP_DIR="$(mktemp -d)"
-
-# Run tests inside the mage2gen container with proper volume mounting
-docker run --rm \
+docker run --rm -it \
+    -v $(pwd):/var/www/html \
     -u "$(id -u):$(id -g)" \
-    --entrypoint python3 \
-    $IMAGE_NAME -m unittest discover -s tests -v
+    -e MAGE2GEN_OUTPUT=/var/www/html/app/code \
+    mage2gen:latest \
+    python3 -m mage2gen.daemon
+```
 
-# Capture exit code
-EXIT_CODE=$?
+*   **-v**: Mounts your current directory (Project Root) to the container.
+*   **-u**: Runs as your user ID to prevent permission issues.
+*   **MAGE2GEN_OUTPUT**: Tells the generator where to write the PHP files.
 
-# Cleanup temp directory
-rm -rf "$TEMP_DIR"
+---
 
-# Exit with the same code as the tests
-exit $EXIT_CODE
+## 👨‍💻 Contributing to Mage2Gen
 
-# Alternative: If you prefer using run_tests.py:
-# docker run --rm \
-#     -u "$(id -u):$(id -g)" \
-#     --entrypoint python3 \
-#     $IMAGE_NAME tests/run_tests.py
-EOF
-chmod +x ~/.ddev/commands/host/m2g-test-suite
+Want to fix a bug or add a new Snippet?
+
+1.  **Clone the Repo:**
+    ```bash
+    git clone https://github.com/mage2gen/mage2gen.git ~/code/mage2gen
+    ```
+
+2.  **Mount Source in Your Project:**
+    Edit your project's `.ddev/docker-compose.mage2gen.yaml` to override the code volume:
+    ```yaml
+    volumes:
+      - ../:/var/www/html
+      - ~/code/mage2gen:/opt/mage2gen
+    ```
+
+3.  **Develop:**
+    Edit Python files in `~/code/mage2gen`. Restart `ddev` to apply changes to the daemon.
+
+4.  **Run Tests:**
+    ```bash
+    # From inside the Mage2Gen repo folder
+    make test
+    ```
+
+## License
+GPLv3
 ```
 
 ---
 
-## Usage
+### 4. ⚙️ Daemon Safety (`daemon.py`)
 
-Navigate to **any** Magento 2 project directory and run the commands.
+I added a check to ensure `MAGE2GEN_OUTPUT` defaults safely if not provided, preventing generation into the root of the container if misconfigured.
 
-### Initialize a Module
-```bash
-cd ~/my-magento-project
-ddev m2g module --package Vendor --name Blog --description "My Blog Module"
+**File:** `mage2gen/daemon.py` (Snippet)
+
+```python
+def start_daemon():
+    # Default to current directory if env var not set, but warn user
+    output_dir = os.environ.get("MAGE2GEN_OUTPUT")
+    
+    if not output_dir:
+        logger.warning("⚠️  MAGE2GEN_OUTPUT not set. Defaulting to './generated' to avoid clutter.")
+        output_dir = os.path.join(os.getcwd(), "generated")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+    
+    logger.info(f"🚀 Mage2Gen Daemon starting...")
+    logger.info(f"📂 Writing code to: {output_dir}")
+    # ...
 ```
-*   **Result:** `app/code/Vendor/Blog` is created automatically.
-
-### Generate Components
-Once the module structure exists, add components to it:
-
-```bash
-# Add a CRUD Model
-ddev m2g model --package Vendor --module Blog --name Post --admin-grid
-
-# Add a Controller
-ddev m2g controller --package Vendor --module Blog --action index
-```
-
-### Advanced Features (v3.2)
-
-**System Configuration:**
-*   **Image Upload:** `ddev m2g system ... --type image`
-*   **Color Picker:** `ddev m2g system ... --type color`
-*   **Dependencies:** `ddev m2g system ... --depends "enable_field:1"`
-*   **Dynamic Rows:**
-    ```bash
-    ddev m2g system-dynamic --columns "lat:Latitude,lon:Longitude" ...
-    ```
-
-### Available Commands
-
-| Command | Description | Example |
-| :--- | :--- | :--- |
-| `module` | Create a new module structure | `ddev m2g module` |
-| `model` | Create a CRUD Model | `ddev m2g model --name Post` |
-| `admin-crud`| **(Meta)** Full Grid + Form + Logic | `ddev m2g admin-crud --name Post` |
-| `controller` | Create a Controller Action | `ddev m2g controller --action index` |
-| `block` | Create a Block & Template | `ddev m2g block --name Info` |
-| `observer` | Create an Event Observer | `ddev m2g observer --event ...` |
-| `plugin` | Create a Plugin (Interceptor) | `ddev m2g plugin --target-class ...` |
-| `console` | Create a CLI Command | `ddev m2g console --name import:run` |
-| `cronjob` | Create a Cron Job | `ddev m2g cronjob --schedule "*/5 * * *"` |
-| `system` | Add System Config Field | `ddev m2g system --section general` |
-| `system-dynamic`| **(New)** Add Dynamic Row Config | `ddev m2g system-dynamic ...` |
-| `api` | Create REST API Endpoint | `ddev m2g api --name StockCheck` |
-| `graphql` | Create GraphQL Endpoint | `ddev m2g graphql --name getPost` |
-| `message-queue`| Async Queue Topology | `ddev m2g message-queue ...` |
-
-## Development
-
-To contribute to Mage2Gen, modify the source code and rebuild the image:
-
-```bash
-docker build -t mage2gen:latest .
-```
-
-### Running Tests
-Run the unit tests inside the Docker container using the helper command:
-
-```bash
-ddev m2g-test-suite
-```
-
-## License
-
-GPLv3
-
-
-### Wishlist
-- admin form text fields rendered as pagebuilder but not always we want this, some times we prefer simple wisiwig
-- admin complex forms with models for item selection
-- admin store config dynamic row dnd
-- customer sections to bypass fpc
-

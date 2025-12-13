@@ -8,6 +8,10 @@ class PluginSnippet(Snippet):
     description = "Create a Before/After/Around Plugin."
 
     def add(self, target_class, method, type="after", sort_order=10, **kwargs):
+        # [FIX] Support 'plugin_type' alias to avoid YAML collision with component 'type'
+        if 'plugin_type' in kwargs:
+            type = kwargs['plugin_type']
+
         package = self._module.package
         module = self._module.name
         

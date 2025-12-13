@@ -36,9 +36,11 @@ setup(
     url = 'https://github.com/krukas/Mage2Gen',
     keywords = ['Magento', 'Magento2', 'module', 'generator', 'mage2gen', 'cli'],
     install_requires=[
-        'Jinja2>=3.1.2',
-        'typer>=0.9.0'
-    ],
+            'Jinja2>=3.1.2',
+            'typer>=0.9.0',
+            'watchdog>=3.0.0', # Added
+            'PyYAML>=6.0'      # Added
+        ],
     entry_points={
         'console_scripts': [
             'mage2gen=mage2gen.app:app',

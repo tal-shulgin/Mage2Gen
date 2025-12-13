@@ -3,7 +3,7 @@ import os
 import random
 import string
 import shutil
-import tempfile # <--- Import this
+import tempfile
 from glob import glob
 
 from subprocess import Popen, PIPE

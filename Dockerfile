@@ -39,7 +39,7 @@ ENV PATH="/opt/magento-coding-standard/vendor/bin:${PATH}"
 COPY . /opt/mage2gen
 
 # Install dependencies (Added: gitingest)
-RUN pip install --no-cache-dir typer jinja2 gitingest
+RUN pip install --no-cache-dir typer jinja2 gitingest watchdog PyYAML
 
 # Fix Permissions
 RUN chmod -R 777 /opt/mage2gen

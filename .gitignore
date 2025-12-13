@@ -1,13 +1,24 @@
+# Python
 __pycache__/
-src/var/
-*.py[cod]
-
-build/
-dist/
+*.pyc
 *.egg-info/
-*.swp
-*.iml
 phpcs.phar
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+
+# Mage2Gen Artifacts (Generated Code)
 generated/
-test_*/
 *.txt
+Mage2Gen/
+app/code/
+
+# Local Testing
+m2g.yaml
+*.log
+
+# Docker/DDEV
+.ddev/

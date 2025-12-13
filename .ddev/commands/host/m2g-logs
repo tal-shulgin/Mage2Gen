@@ -1,0 +1,7 @@
+#!/bin/bash
+
+## Description: Tail logs of the Mage2Gen daemon
+## Usage: m2g-logs
+## Example: ddev m2g-logs
+
+docker logs -f ddev-${DDEV_SITENAME}-mage2gen

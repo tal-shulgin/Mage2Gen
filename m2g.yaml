@@ -1,0 +1,118 @@
+version: 1.0
+
+modules:
+  Mage2Gen_Reference:
+    description: "A comprehensive reference module demonstrating all Mage2Gen capabilities."
+    
+    components:
+      # --- 1. Database & CRUD ---
+      - type: model
+        name: BlogPost
+        fields:
+          - name: title
+            type: text
+            required: true
+          - name: hero_image
+            type: image
+          - name: category_id
+            type: int
+        admin_grid: true
+        admin_form: true
+        api: true
+        graphql: true
+        menu_parent: Magento_Backend::content
+
+      # --- 2. Routing ---
+      - type: controller
+        frontname: ref
+        section: demo
+        action: index
+        admin: false
+
+      # --- 3. Frontend ---
+      - type: block
+        name: InfoBlock
+        layout_handle: default
+        reference: footer_links
+
+      - type: widget
+        name: PromotionalBanner
+        field: banner_text
+        field_type: text # Renamed to avoid collision if widget snippet uses 'type' internally
+        sortorder: 10
+
+      # --- 4. Logic Hooks ---
+      - type: observer
+        event: checkout_cart_add_product_complete
+        scope: frontend
+
+      - type: plugin
+        target_class: Magento\Catalog\Model\Product
+        method: getName
+        plugin_type: after  # FIXED: Renamed from 'type' to 'plugin_type'
+        sort_order: 20
+
+      # --- 5. System Configuration ---
+      # Note: Use 'field_type' instead of 'type' for the input type
+      
+      - type: system
+        tab: reference
+        section: general
+        group: configuration
+        field: api_endpoint
+        field_type: text
+        default: https://api.example.com
+        create_tab: true
+
+      - type: system
+        tab: reference
+        section: general
+        group: configuration
+        field: api_secret
+        field_type: password
+        encrypt: true
+        comment: "Stored securely"
+        validate: required
+
+      - type: system
+        tab: reference
+        section: design
+        group: appearance
+        field: background_color
+        field_type: color
+        depends: "enable_custom_colors:1"
+        tooltip: "Select a HEX color"
+
+      - type: system
+        tab: reference
+        section: design
+        group: appearance
+        field: watermark
+        field_type: image # FIXED: No longer collides with 'type: system'
+        depends: "enable_custom_colors:1"
+
+      # --- 6. Backend Logic ---
+      - type: console
+        name: ref:demo:run
+        description: "Runs the reference demo command"
+
+      - type: cron
+        name: ReferenceCleanupJob
+        schedule: "0 1 * * *"
+        group: default
+
+      - type: logger
+        name: ReferenceLogger
+        filename: reference.log
+
+      # --- 7. Web API ---
+      - type: api
+        name: StatusCheck
+        method: GET
+
+      # --- 8. Sales ---
+      - type: payment
+        name: Offline Token Payment
+
+      - type: shipping
+        name: Drone Delivery

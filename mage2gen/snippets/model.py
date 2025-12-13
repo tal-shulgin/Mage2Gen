@@ -199,7 +199,16 @@ class ModelSnippet(Snippet):
         interface_name = f"{model_name}Interface"
         extension_interface = f"{model_name}ExtensionInterface"
         interface_ns = f"{module_package}\\{module_name}\\Api\\Data"
-        content = TemplateEngine.render('snippets/model/interface.j2', {**base_context, 'namespace': interface_ns, 'class_name': interface_name, 'extension_interface': extension_interface})
+        
+        # [FIX] Use FQCN for Interface generation to match Model implementation
+        extension_interface_fqcn = f"{interface_ns}\\{extension_interface}"
+        
+        content = TemplateEngine.render('snippets/model/interface.j2', {
+            **base_context, 
+            'namespace': interface_ns, 
+            'class_name': interface_name, 
+            'extension_interface': extension_interface_fqcn # Fixed
+        })
         self.add_static_file("Api/Data", StaticFile(f"{interface_name}.php", body=content))
 
         search_results_interface = f"{model_name}SearchResultsInterface"
@@ -215,7 +224,7 @@ class ModelSnippet(Snippet):
         model_ns = f"{module_package}\\{module_name}\\Model"
         resource_name = f"{model_name}"
         resource_ns = f"{module_package}\\{module_name}\\Model\\ResourceModel"
-        content = TemplateEngine.render('snippets/model/model.j2', {**base_context, 'namespace': model_ns, 'class_name': model_name, 'interface_namespace': interface_ns, 'interface_name': interface_name, 'resource_namespace': resource_ns, 'resource_name': resource_name, 'extension_interface': f"{interface_ns}\\{extension_interface}"})
+        content = TemplateEngine.render('snippets/model/model.j2', {**base_context, 'namespace': model_ns, 'class_name': model_name, 'interface_namespace': interface_ns, 'interface_name': interface_name, 'resource_namespace': resource_ns, 'resource_name': resource_name, 'extension_interface': extension_interface_fqcn})
         self.add_static_file("Model", StaticFile(f"{model_name}.php", body=content))
 
         # 3. Resource Model
@@ -240,7 +249,7 @@ class ModelSnippet(Snippet):
         content = TemplateEngine.render('snippets/model/repository.j2', {'namespace': model_ns, 'class_name': repo_class, 'repository_interface': f"{repo_ns}\\{repo_interface}", 'interface_namespace': interface_ns, 'interface_name': interface_name, 'model_name': model_name, 'resource_namespace': resource_ns, 'resource_name': resource_name, 'collection_namespace': collection_ns, 'collection_name': collection_name, 'var_name': lowerfirst(model_name), 'id_field': 'id'})
         self.add_static_file("Model", StaticFile(f"{repo_class}.php", body=content))
 
-        # 6. Schema & DI (Updated with Constraints)
+        # 6. Schema & DI
         db_table = Table(table_name, comment=f"{model_name} Table")
         for f in field_list:
             if f['name'] == id_field:
@@ -283,6 +292,33 @@ class ModelSnippet(Snippet):
             Xmlnode('preference', attributes={'for': f"{interface_ns}\\{interface_name}", 'type': f"{model_ns}\\{model_name}"}),
             Xmlnode('preference', attributes={'for': f"{interface_ns}\\{search_results_interface}", 'type': 'Magento\\Framework\\Api\\SearchResults'})
         ]
+
+        # --- [FIX] ADMIN GRID DI REGISTRATION ---
+        if admin_grid:
+            grid_collection_virtual_type = f"{resource_ns}\\{resource_name}\\Grid\\Collection"
+            data_source_name = f"{table_name}_listing_data_source"
+
+            # 1. Create VirtualType for the Grid Collection (extends SearchResult)
+            di_nodes.append(Xmlnode('virtualType', attributes={
+                'name': grid_collection_virtual_type,
+                'type': "Magento\\Framework\\View\\Element\\UiComponent\\DataProvider\\SearchResult"
+            }, nodes=[
+                Xmlnode('arguments', nodes=[
+                    Xmlnode('argument', attributes={'name': 'mainTable', 'xsi:type': 'string'}, node_text=table_name),
+                    Xmlnode('argument', attributes={'name': 'resourceModel', 'xsi:type': 'string'}, node_text=f"{resource_ns}\\{resource_name}")
+                ])
+            ]))
+
+            # 2. Register this VirtualType in the UI CollectionFactory
+            di_nodes.append(Xmlnode('type', attributes={
+                'name': "Magento\\Framework\\View\\Element\\UiComponent\\DataProvider\\CollectionFactory"
+            }, nodes=[
+                Xmlnode('arguments', nodes=[
+                    Xmlnode('argument', attributes={'name': 'collections', 'xsi:type': 'array'}, nodes=[
+                        Xmlnode('item', attributes={'name': data_source_name, 'xsi:type': 'string'}, node_text=grid_collection_virtual_type)
+                    ])
+                ])
+            ]))
         
         # --- IMAGE UPLOAD LOGIC ---
         if image_fields:
@@ -319,6 +355,17 @@ class ModelSnippet(Snippet):
 
         di_xml = Xmlnode('config', attributes={'xsi:noNamespaceSchemaLocation': "urn:magento:framework:ObjectManager/etc/config.xsd"}, nodes=di_nodes)
         self.add_xml('etc/di.xml', di_xml)
+
+        # 7. Extension Attributes XML
+        # We must register the interface in extension_attributes.xml so Magento generates the *ExtensionInterface
+        # even if it has no attributes initially.
+        ext_xml = Xmlnode('config', attributes={
+            'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+            'xsi:noNamespaceSchemaLocation': "urn:magento:framework:Api/etc/extension_attributes.xsd"
+        }, nodes=[
+            Xmlnode('extension_attributes', attributes={'for': f"{interface_ns}\\{interface_name}"})
+        ])
+        self.add_xml('etc/extension_attributes.xml', ext_xml)
 
         self.add_static_file('.', Readme(specifications=f" - Model: {model_name} ({table_name})"))
 
@@ -358,7 +405,7 @@ class ModelSnippet(Snippet):
                 'module': module_name,
                 'route_id': route_id,
                 'model_lower': model_lower,
-                'has_is_active': has_is_active # To optionally render MassActions
+                'has_is_active': has_is_active
             })
             self.add_static_file(f"view/adminhtml/ui_component", StaticFile(f"{table_name}_listing.xml", body=listing_xml))
             
@@ -367,11 +414,11 @@ class ModelSnippet(Snippet):
                 'table_name': table_name,
                 'model_name': model_name,
                 'id_field': id_field,
-                'fields': ui_fields, # Contains form_element and data_type
+                'fields': ui_fields,
                 'package': module_package,
                 'module': module_name,
                 'route_id': route_id,
-                'model_lower': model_lower # Passed for upload URL generation
+                'model_lower': model_lower
             })
             self.add_static_file(f"view/adminhtml/ui_component", StaticFile(f"{table_name}_form.xml", body=form_xml))
             
@@ -439,7 +486,7 @@ class ModelSnippet(Snippet):
                 'namespace': admin_ctrl_ns,
                 'class_name': 'Index',
                 'admin': True,
-                'parent_class': 'Action',
+                'parent_class': '\Magento\Backend\App\Action',
                 'ctor_args': 'Context $context, PageFactory $resultPageFactory',
                 'parent_call': 'parent::__construct($context); $this->resultPageFactory = $resultPageFactory;'
             })
@@ -450,7 +497,7 @@ class ModelSnippet(Snippet):
                 'namespace': admin_ctrl_ns,
                 'class_name': 'Edit',
                 'admin': True,
-                'parent_class': 'Action',
+                'parent_class': '\Magento\Backend\App\Action',
                 'ctor_args': 'Context $context, PageFactory $resultPageFactory',
                 'parent_call': 'parent::__construct($context); $this->resultPageFactory = $resultPageFactory;'
             })
@@ -542,7 +589,7 @@ class NewAction extends Action
                 upload_content = TemplateEngine.render('snippets/controller/admin/upload.j2', {
                     'namespace': admin_ctrl_ns,
                     'resource_id': f"{module_package}_{module_name}::{model_lower}",
-                    'field_name': image_fields[0] # Default fallback
+                    'field_name': image_fields[0]
                 })
                 self.add_static_file(f"Controller/Adminhtml/{upperfirst(name)}", StaticFile("Upload.php", body=upload_content))
 
@@ -612,7 +659,7 @@ class NewAction extends Action
 
             # 2. Schema
             type_name = model_name
-            id_type = 'Int' # Default for auto-increment ID
+            id_type = 'Int'
             
             # Generate Schema
             schema_content = TemplateEngine.render('snippets/graphql/crud/schema.j2', {
