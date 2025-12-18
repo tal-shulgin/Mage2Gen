@@ -44,6 +44,10 @@ class {{ class_name }} implements HttpGetActionInterface
      */
     public function execute()
     {
+        {% if instruction %}
+        // @ai-instruction: {{ instruction }}
+        // TODO: Implement logic here
+        {% endif %}
         return $this->resultPageFactory->create();
     }
 }

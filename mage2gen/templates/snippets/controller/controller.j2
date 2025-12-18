@@ -34,6 +34,10 @@ class {{ class_name }} {% if admin %}extends {{ parent_class }}{% else %}impleme
      */
     public function execute()
     {
+        {% if instruction %}
+        // @ai-instruction: {{ instruction }}
+        // TODO: Implement logic here
+        {% endif %}
         return $this->resultPageFactory->create();
     }
 }

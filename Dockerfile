@@ -38,8 +38,10 @@ ENV PATH="/opt/magento-coding-standard/vendor/bin:${PATH}"
 # Copy source code
 COPY . /opt/mage2gen
 
-# Install dependencies (Added: gitingest)
-RUN pip install --no-cache-dir typer jinja2 gitingest watchdog PyYAML
+# Install dependencies
+# [FIX] Upgrade pip first, then install with higher timeout
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --default-timeout=100 typer jinja2 gitingest watchdog PyYAML
 
 # Fix Permissions
 RUN chmod -R 777 /opt/mage2gen

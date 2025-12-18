@@ -6,7 +6,7 @@ class ConsoleSnippet(Snippet):
     snippet_label = 'Console Command'
     description = "Create a bin/magento console command."
 
-    def add(self, name, description="Sample command", **kwargs):
+    def add(self, name, description="Sample command", instruction=None, **kwargs):
         package = self._module.package
         module = self._module.name
         
@@ -24,7 +24,9 @@ class ConsoleSnippet(Snippet):
             'namespace': namespace,
             'class_name': class_name,
             'command_name': command_name,
-            'description': description
+            'description': description,
+            'instruction': instruction,
+            'admin': False # Explicitly setting default as kwargs handling can be tricky
         })
         self.add_static_file("Console/Command", StaticFile(f"{class_name}.php", body=content))
 

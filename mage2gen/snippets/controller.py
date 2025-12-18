@@ -8,7 +8,7 @@ class ControllerSnippet(Snippet):
     description = "Create a Controller Action and Route (Logic Injected)."
 
     def add(self, frontname=None, section='index', action='index', adminhtml=False, 
-            entity_context=None, **kwargs):
+            entity_context=None, instruction=None, **kwargs):
         
         if 'admin' in kwargs: adminhtml = kwargs['admin']
         admin = adminhtml 
@@ -37,7 +37,8 @@ class ControllerSnippet(Snippet):
             'parent_class': "\Magento\Backend\App\Action" if admin else "\Magento\Framework\App\Action\Action",
             'implements': "\Magento\Framework\App\Action\HttpGetActionInterface",
             'ctor_args': 'Context $context' if admin else 'PageFactory $resultPageFactory',
-            'parent_call': 'parent::__construct($context);' if admin else '$this->resultPageFactory = $resultPageFactory;'
+            'parent_call': 'parent::__construct($context);' if admin else '$this->resultPageFactory = $resultPageFactory;',
+            'instruction': instruction # Pass to template
         }
 
         # Check if we have specific logic templates for Admin CRUD

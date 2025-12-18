@@ -7,8 +7,7 @@ class PluginSnippet(Snippet):
     snippet_label = 'Plugin'
     description = "Create a Before/After/Around Plugin."
 
-    def add(self, target_class, method, type="after", sort_order=10, **kwargs):
-        # [FIX] Support 'plugin_type' alias to avoid YAML collision with component 'type'
+    def add(self, target_class, method, type="after", sort_order=10, instruction=None, **kwargs):
         if 'plugin_type' in kwargs:
             type = kwargs['plugin_type']
 
@@ -27,7 +26,8 @@ class PluginSnippet(Snippet):
             'class_name': plugin_name,
             'subject_class': target_class,
             'method_name': method,
-            'type': type
+            'type': type,
+            'instruction': instruction
         })
         self.add_static_file("Plugin", StaticFile(f"{plugin_name}.php", body=content))
 

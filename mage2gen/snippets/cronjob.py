@@ -6,7 +6,7 @@ class CronjobSnippet(Snippet):
     snippet_label = 'Cronjob'
     description = "Create a Cron Job."
 
-    def add(self, name, schedule="*/5 * * * *", group="default", **kwargs):
+    def add(self, name, schedule="*/5 * * * *", group="default", instruction=None, **kwargs):
         package = self._module.package
         module = self._module.name
         class_name = upperfirst(name)
@@ -15,7 +15,8 @@ class CronjobSnippet(Snippet):
         # PHP
         content = TemplateEngine.render('snippets/cron/cronjob.j2', {
             'namespace': namespace,
-            'class_name': class_name
+            'class_name': class_name,
+            'instruction': instruction
         })
         self.add_static_file("Cron", StaticFile(f"{class_name}.php", body=content))
 

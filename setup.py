@@ -8,7 +8,7 @@ def readme():
     if os.path.exists('README.md'):
         with open('README.md') as f:
             return f.read()
-    return "Mage2Gen 3.0"
+    return "Mage2Gen 6.0"
 
 import os
 
@@ -20,9 +20,9 @@ setup(
         'mage2gen.core', 
         'mage2gen.features'
     ],
-    package_data={'mage2gen': ['templates/**/*.j2', 'licenses/*.txt']}, # 'templates/**/*.tmpl',
-    version = '3.2.0',
-    description = 'Magento 2 module generator (V3)',
+    package_data={'mage2gen': ['templates/**/*.j2', 'licenses/*.txt']},
+    version = '6.0.0',
+    description = 'Magento 2 module generator (V6)',
     long_description=readme(),
     long_description_content_type='text/markdown',
     classifiers=[
@@ -38,8 +38,9 @@ setup(
     install_requires=[
             'Jinja2>=3.1.2',
             'typer>=0.9.0',
-            'watchdog>=3.0.0', # Added
-            'PyYAML>=6.0'      # Added
+            'watchdog>=3.0.0',
+            'PyYAML>=6.0',
+            'gitingest>=0.3.1'
         ],
     entry_points={
         'console_scripts': [

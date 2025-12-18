@@ -15,7 +15,10 @@ class {{ class_name }}
         \{{ subject_class }} $subject,
         ...$args
     ) {
-        // Your code here
+        {% if instruction %}
+        // @ai-instruction: {{ instruction }}
+        // TODO: Implement logic here
+        {% endif %}
         return $args;
     }
 {% elif type == 'after' %}
@@ -28,7 +31,10 @@ class {{ class_name }}
         \{{ subject_class }} $subject,
         $result
     ) {
-        // Your code here
+        {% if instruction %}
+        // @ai-instruction: {{ instruction }}
+        // TODO: Implement logic here
+        {% endif %}
         return $result;
     }
 {% elif type == 'around' %}
@@ -43,7 +49,10 @@ class {{ class_name }}
         callable $proceed,
         ...$args
     ) {
-        // Your code here
+        {% if instruction %}
+        // @ai-instruction: {{ instruction }}
+        // TODO: Implement logic here
+        {% endif %}
         $result = $proceed(...$args);
         return $result;
     }

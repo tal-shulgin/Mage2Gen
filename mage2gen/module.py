@@ -121,6 +121,10 @@ class Phpmethod:
         self.end_body = [kwargs.get('end_body', '')]
         self.body_start = kwargs.get('body_start', '')
         self.body_return = kwargs.get('body_return', '')
+        
+        # [Feature 3.1] AI Instruction Support
+        self.instruction = kwargs.get('instruction', '')
+        
         self.template_file = os.path.join(TEMPLATE_DIR, 'method.tmpl')
 
     def __eq__(self, other):
@@ -170,8 +174,16 @@ class Phpmethod:
 
     def body_code(self):
         full_body_list = []
+        
+        # [Feature 3.1] Inject Instruction at top of body
+        if self.instruction:
+            full_body_list.append(f"// @ai-instruction: {self.instruction}")
+            full_body_list.append("// TODO: Implement logic based on instruction above")
+            full_body_list.append("") # Blank line
+
         if self.body_start:
             full_body_list.append(self.body_start)
+
         full_body_list.extend(self.body)
         full_body_list.extend(self.end_body)
         if self.body_return:

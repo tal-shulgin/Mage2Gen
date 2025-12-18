@@ -27,6 +27,10 @@ class {{ class_name }}
      */
     public function execute()
     {
+        {% if instruction %}
+        // @ai-instruction: {{ instruction }}
+        // TODO: Implement logic here
+        {% endif %}
         $this->logger->info('Cronjob {{ class_name }} is executed.');
     }
 }

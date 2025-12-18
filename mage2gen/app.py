@@ -1,6 +1,14 @@
 import typer
 import os
 from typing import Optional
+from mage2gen.utils import upperfirst
+from mage2gen.discovery.engine import DiscoveryEngine
+
+try:
+    from gitingest import ingest
+    HAS_GITINGEST = True
+except ImportError:
+    HAS_GITINGEST = False
 
 app = typer.Typer(
     name="Mage2Gen",
@@ -650,6 +658,104 @@ def integration_test(
     )
     
     mod.generate_module(output_dir)
+
+@app.command()
+def digest(
+    path: str = typer.Option(".", help="Root directory to digest"),
+    output: str = typer.Option("context.txt", help="Output filename"),
+    config: str = typer.Option("m2g.yaml", help="Configuration file to prepend")
+):
+    """
+    Create a context file for AI agents (m2g.yaml + Source Code).
+    Requires 'gitingest' to be installed.
+    """
+    if not HAS_GITINGEST:
+        typer.echo("❌ Error: 'gitingest' library not found. Please run 'pip install gitingest'.")
+        raise typer.Exit(code=1)
+
+    typer.echo(f"🍪 Baking context digest from: {path}")
+
+    # 1. Define Ignore Patterns (Standard Magento Noise)
+    ignore_patterns = [
+        "vendor",
+        "var",
+        "pub",
+        "generated", # Magento generated code (factories/proxies)
+        "lib",
+        "node_modules",
+        ".git",
+        ".idea",
+        ".vscode",
+        "*.lock",
+        "*.phar",
+        "phpserver",
+        "auth.json",
+        "m2g-index.json", # Don't include the index if present
+        output # Don't include the output file itself
+    ]
+
+    # 2. Run Ingest
+    try:
+        summary, tree, content = ingest(path, exclude_patterns=ignore_patterns)
+    except Exception as e:
+        typer.echo(f"❌ Error during ingestion: {e}")
+        raise typer.Exit(code=1)
+
+    # 3. Construct Context
+    final_output = []
+
+    # A. Header: The Definition (m2g.yaml)
+    config_path = os.path.join(path, config)
+    if os.path.exists(config_path):
+        final_output.append("=" * 50)
+        final_output.append(f"FILE: {config} (Project Definition)")
+        final_output.append("=" * 50)
+        with open(config_path, 'r') as f:
+            final_output.append(f.read())
+        final_output.append("\n")
+
+    # B. The Tree Structure
+    final_output.append("=" * 50)
+    final_output.append("DIRECTORY STRUCTURE")
+    final_output.append("=" * 50)
+    final_output.append(tree)
+    final_output.append("\n")
+
+    # C. The Code Content
+    final_output.append(content)
+
+    # 4. Write to File
+    output_path = os.path.join(path, output)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(final_output))
+
+    typer.echo(f"✅ Context saved to: {output_path}")
+    typer.echo(f"   - Definition: {config} {'(Included)' if os.path.exists(config_path) else '(Not Found)'}")
+    typer.echo(f"   - Source Code: {len(content)} chars")
+
+@app.command()
+def inspect(
+    path: str = typer.Option("/var/www/html", help="Path to Magento project root (Container path)"),
+    output: str = typer.Option("m2g-index.json", help="Output filename")
+):
+    """
+    Scan the project and index existing config paths and grid columns.
+    """
+    typer.echo(f"🕵️  Scanning Project at: {path}...")
+    
+    if not os.path.exists(os.path.join(path, 'app', 'code')):
+        typer.echo("⚠️  Warning: 'app/code' not found. Are you in the project root?")
+
+    engine = DiscoveryEngine(path)
+    report = engine.run()
+    
+    # Save to current working dir (where m2g.yaml likely is)
+    output_path = os.path.join(os.getcwd(), output)
+    engine.save_report(report, output_path)
+    
+    typer.echo(f"✅ Index saved to: {output}")
+    typer.echo(f"   Found {len(report.get('config_paths', []))} config paths")
+    typer.echo(f"   Found {len(report.get('grid_columns', []))} unique grid columns")
 
 if __name__ == "__main__":
     app()

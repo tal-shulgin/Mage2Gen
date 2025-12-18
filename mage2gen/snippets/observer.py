@@ -14,7 +14,8 @@ class ObserverSnippet(Snippet):
     snippet_label = 'Observer / Event'
     description = "Create an Observer to hook into Magento events."
 
-    def add(self, event, scope=Scope.ALL):
+    def add(self, event, scope=Scope.ALL, **kwargs):
+        instruction = kwargs.get('instruction')
         split_event = event.split('_')
         observerFolder = ['Observer']
         if scope != Scope.ALL:
@@ -34,7 +35,8 @@ class ObserverSnippet(Snippet):
             params=['Observer $observer'],
             body="// Your observer code",
             return_type='void',
-            docstring=['Execute observer', '', '@param Observer $observer', '@return void']
+            docstring=['Execute observer', '', '@param Observer $observer', '@return void'],
+            instruction=instruction # Pass instruction
         ))
 
         self.add_class(observer)    

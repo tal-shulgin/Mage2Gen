@@ -1,6 +1,7 @@
 from .. import Snippet, StaticFile, Readme, Xmlnode
 from ..core.template import TemplateEngine
 from ..utils import upperfirst
+from ..core.library import StandardLibrary
 
 class SystemSnippet(Snippet):
     snippet_label = 'System Config'
@@ -69,6 +70,12 @@ class SystemSnippet(Snippet):
 
         # 3. Source/Backend/Frontend Model Initialization
         source_model = kwargs.get('source_model', '')
+
+        # [FEATURE] Alias Resolution
+        # If user passed 'yesno', 'countries', etc., resolve to full class name
+        if source_model:
+            source_model = StandardLibrary.resolve_source(source_model)
+
         backend_model = kwargs.get('backend_model', '')
         frontend_model = kwargs.get('frontend_model', '')
         upload_dir_node = None
@@ -76,10 +83,10 @@ class SystemSnippet(Snippet):
         # 4. Rich Type Logic
         if type in ['select', 'multiselect']:
             if not source_model:
-                source_model = 'Magento\\Config\\Model\\Config\\Source\\Yesno'
+                source_model = StandardLibrary.SOURCE_MODELS['yesno']
                 
         elif type == 'email':
-            source_model = 'Magento\\Config\\Model\\Config\\Source\\Email\\Template'
+            source_model = StandardLibrary.SOURCE_MODELS['email_template']
             type = 'select'
 
         elif type == 'image':
